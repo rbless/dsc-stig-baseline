@@ -1,34 +1,34 @@
 #Requires -Version 5.1
 <#
 .SYNOPSIS
-    Assembles the DSC package and produces a versioned ZIP ready for Blob Storage.
+    assembles the dsc package and produces a versioned zip ready for blob storage.
 
 .DESCRIPTION
-    Run this on your dev machine or in your Azure DevOps pipeline (build agent).
-    Do NOT run on the target VMs.
+    run this on your dev machine or in your azure devops pipeline (build agent).
+    do not run on the target vms.
 
-    What it does:
-      1. Reads version from VERSION file
-      2. Validates that vendored modules exist
-      3. Assembles the full C:\DSC folder structure into a staging directory
-      4. Stamps BUILD date and builder name into VERSION
-      5. Outputs DSC_v<version>.zip ready to upload to Blob Storage
+    what it does:
+      1. reads version from version file
+      2. validates that vendored modules exist
+      3. assembles the full C:\DSC folder structure into a staging directory
+      4. stamps build date and builder name into version
+      5. outputs DSC_v<version>.zip ready to upload to blob storage
 
-.PARAMETER SourceRoot
-    Root of this repo / working directory. Default: script directory.
+.PARAMETER sourceroot
+    root of this repo / working directory. default: script directory.
 
-.PARAMETER ModulesPath
-    Where VendorModules.ps1 dropped the downloaded modules.
-    Default: <SourceRoot>\VendorOutput\Modules
+.PARAMETER modulespath
+    where VendorModules.ps1 dropped the downloaded modules.
+    default: <sourceroot>\VendorOutput\Modules
 
-.PARAMETER OutputPath
-    Where the final ZIP is written. Default: <SourceRoot>\dist
+.PARAMETER outputpath
+    where the final zip is written. default: <sourceroot>\dist
 
-.PARAMETER PackageVersion
-    Override the version in the VERSION file. Optional.
+.PARAMETER packageversion
+    override the version in the version file. optional.
 
-.PARAMETER BuiltBy
-    Name/identity stamped into VERSION. Defaults to current user.
+.PARAMETER builtby
+    name/identity stamped into version. defaults to current user.
 
 .EXAMPLE
     .\Build-Package.ps1
@@ -37,86 +37,90 @@
 
 [CmdletBinding()]
 param (
-    [string]$SourceRoot     = $PSScriptRoot,
-    [string]$ModulesPath    = (Join-Path $PSScriptRoot 'VendorOutput\Modules'),
-    [string]$OutputPath     = (Join-Path $PSScriptRoot 'dist'),
-    [string]$PackageVersion = '',
-    [string]$BuiltBy        = $env:USERNAME
+    [string]$sourceroot     = $PSScriptRoot,
+    [string]$modulespath    = (Join-Path $PSScriptRoot 'VendorOutput\Modules'),
+    [string]$outputpath     = (Join-Path $PSScriptRoot 'dist'),
+    [string]$packageversion = '',
+    [string]$builtby        = $env:USERNAME
 )
 
 Set-StrictMode -Version Latest
-$ErrorActionPreference = 'Stop'
+$erroractionpreference = 'Stop'
 
 # ---------------------------------------------------------------------------
-# Logging
+# logging
 # ---------------------------------------------------------------------------
-$LogDir  = Join-Path $SourceRoot 'Logs'
-$null    = New-Item -ItemType Directory -Path $LogDir -Force
-$LogFile = Join-Path $LogDir "Build_$(Get-Date -Format 'yyyyMMdd_HHmmss').log"
+$logdir  = Join-Path $sourceroot 'Logs'
+$null    = New-Item -ItemType Directory -Path $logdir -Force
+$logfile = Join-Path $logdir "Build_$(Get-Date -Format 'yyyyMMdd_HHmmss').log"
 
 function Write-Log {
     param(
-        [string]$Message,
-        [ValidateSet('INFO','WARN','ERROR')]
-        [string]$Level = 'INFO'
+        [string]$message,
+        [ValidateSet('info','warn','error')]
+        [string]$level = 'info'
     )
-    $entry = "[$(Get-Date -Format 'yyyy-MM-dd HH:mm:ss')] [$Level] $Message"
-    Add-Content -Path $LogFile -Value $entry
+    $entry = "[$(Get-Date -Format 'yyyy-MM-dd HH:mm:ss')] [$level] $message"
+    Add-Content -Path $logfile -Value $entry
 }
 
 # ---------------------------------------------------------------------------
-# Helpers
+# helpers — write-step/ok/fail mirror the log to file alongside console output
 # ---------------------------------------------------------------------------
 function Write-Step {
-    param([string]$Msg)
-    Write-Host "`n==> $Msg" -ForegroundColor Cyan
-    Write-Log $Msg
+    param([string]$msg)
+    Write-Host "`n==> $msg" -ForegroundColor Cyan
+    Write-Log $msg
 }
 function Write-OK {
-    param([string]$Msg)
-    Write-Host "    [OK] $Msg" -ForegroundColor Green
-    Write-Log "[OK] $Msg"
+    param([string]$msg)
+    Write-Host "    [OK] $msg" -ForegroundColor Green
+    Write-Log "[ok] $msg"
 }
 function Write-Fail {
-    param([string]$Msg)
-    Write-Log $Msg 'ERROR'
-    Write-Error "    [FAIL] $Msg"
+    param([string]$msg)
+    Write-Log $msg 'error'
+    Write-Error "    [FAIL] $msg"
 }
 
 try {
 
 # ---------------------------------------------------------------------------
-# Step 1: Load and validate VERSION
+# step 1: load and validate version
 # ---------------------------------------------------------------------------
-Write-Step "Loading VERSION metadata"
+Write-Step "loading version metadata"
 
-$VersionFile = Join-Path $SourceRoot 'VERSION'
-if (-not (Test-Path $VersionFile)) { Write-Fail "VERSION file not found at $VersionFile" }
+$versionfile = Join-Path $sourceroot 'VERSION'
 
-$VersionData = Get-Content $VersionFile -Raw | ConvertFrom-Json
+# abort early if the version file is missing — nothing else can proceed without it
+if (-not (Test-Path $versionfile)) { Write-Fail "version file not found at $versionfile" }
 
-if ($PackageVersion) {
-    $VersionData.PackageVersion = $PackageVersion
+$versiondata = Get-Content $versionfile -Raw | ConvertFrom-Json
+
+# allow caller to override the version number (e.g. from a pipeline variable)
+if ($packageversion) {
+    $versiondata.PackageVersion = $packageversion
 }
 
-$Version   = $VersionData.PackageVersion
-$BuildDate = (Get-Date -Format 'yyyy-MM-dd HH:mm:ss')
+$version   = $versiondata.PackageVersion
+$builddate = (Get-Date -Format 'yyyy-MM-dd HH:mm:ss')
 
-# Stamp build metadata
-$VersionData.BuildDate = $BuildDate
-$VersionData.BuiltBy   = $BuiltBy
+# stamp build metadata into the version object before it gets written into the package
+$versiondata.BuildDate = $builddate
+$versiondata.BuiltBy   = $builtby
 
-Write-OK "Package version : $Version"
-Write-OK "STIG version    : $($VersionData.StigVersion)"
-Write-OK "Built by        : $BuiltBy"
-Write-OK "Build date      : $BuildDate"
+Write-OK "package version : $version"
+Write-OK "stig version    : $($versiondata.StigVersion)"
+Write-OK "built by        : $builtby"
+Write-OK "build date      : $builddate"
 
 # ---------------------------------------------------------------------------
-# Step 2: Validate vendored modules exist
+# step 2: validate vendored modules exist
 # ---------------------------------------------------------------------------
-Write-Step "Validating vendored modules at: $ModulesPath"
+Write-Step "validating vendored modules at: $modulespath"
 
-$RequiredModules = @(
+# these modules must be pre-downloaded by VendorModules.ps1 — no internet on target vms
+$requiredmodules = @(
     'PowerSTIG'
     'PSDscResources'
     'SecurityPolicyDsc'
@@ -127,143 +131,153 @@ $RequiredModules = @(
     'xWebAdministration'
 )
 
-$missingModules = @()
-foreach ($mod in $RequiredModules) {
-    $modPath = Join-Path $ModulesPath $mod
-    if (Test-Path $modPath) {
+$missingmodules = @()
+
+# check each required module directory exists under the vendor output path
+foreach ($mod in $requiredmodules) {
+    $modpath = Join-Path $modulespath $mod
+    if (Test-Path $modpath) {
         Write-OK $mod
     } else {
-        $missingModules += $mod
+        $missingmodules += $mod
         Write-Host "    [MISS] $mod" -ForegroundColor Yellow
     }
 }
 
-if ($missingModules.Count -gt 0) {
+# fail the build if any required modules are absent
+if ($missingmodules.Count -gt 0) {
     Write-Fail @"
-Missing modules: $($missingModules -join ', ')
-Run VendorModules.ps1 on an internet-connected machine first:
-    .\VendorModules.ps1 -OutputPath '$ModulesPath'
+missing modules: $($missingmodules -join ', ')
+run VendorModules.ps1 on an internet-connected machine first:
+    .\VendorModules.ps1 -OutputPath '$modulespath'
 "@
 }
 
 # ---------------------------------------------------------------------------
-# Step 3: Create staging directory
+# step 3: create staging directory
 # ---------------------------------------------------------------------------
-Write-Step "Creating staging directory"
+Write-Step "creating staging directory"
 
-$StagingRoot = Join-Path $env:TEMP "DSC_staging_$(Get-Date -Format 'yyyyMMddHHmmss')"
-$DSCStage    = Join-Path $StagingRoot 'DSC'
+# use a unique temp path so parallel builds don't collide
+$stagingroot = Join-Path $env:TEMP "DSC_staging_$(Get-Date -Format 'yyyyMMddHHmmss')"
+$dscstage    = Join-Path $stagingroot 'DSC'
 
-# Full folder structure that will exist on the VM after unzip
-$Folders = @(
-    ''                    # DSC root
-    'Configurations'      # PS1 config scripts
-    'Modules'             # Vendored PSModules
-    'Downloads'           # Runtime staging (empty in ZIP, used by scripts at runtime)
-    'Logs'                # Runtime logs (empty in ZIP)
-    'MOF'                 # Compiled at bootstrap (empty in ZIP)
-    'LCM'                 # LCM meta-MOF (empty in ZIP)
-    'Reports'             # Drift JSON reports
-    'History'             # Previous installs archived by Bootstrap
+# create the full folder structure that will exist on the vm after the zip is extracted
+$folders = @(
+    ''                    # dsc root
+    'Configurations'      # ps1 config scripts
+    'Modules'             # vendored psmodules
+    'Downloads'           # runtime staging (empty in zip, used by scripts at runtime)
+    'Logs'                # runtime logs (empty in zip)
+    'MOF'                 # compiled at bootstrap (empty in zip)
+    'LCM'                 # lcm meta-mof (empty in zip)
+    'Reports'             # drift json reports
+    'History'             # previous installs archived by bootstrap
 )
 
-foreach ($folder in $Folders) {
-    $path = if ($folder) { Join-Path $DSCStage $folder } else { $DSCStage }
+foreach ($folder in $folders) {
+    $path = if ($folder) { Join-Path $dscstage $folder } else { $dscstage }
     $null = New-Item -ItemType Directory -Path $path -Force
-    Write-OK "Created: DSC\$folder"
+    Write-OK "created: DSC\$folder"
 }
 
-# Drop .gitkeep placeholders in empty runtime folders so unzip preserves them
-foreach ($runtimeFolder in @('Downloads', 'Logs', 'MOF', 'LCM', 'Reports', 'History')) {
-    $placeholder = Join-Path $DSCStage "$runtimeFolder\.gitkeep"
+# drop .gitkeep placeholders in empty runtime folders so the zip extraction preserves them
+foreach ($runtimefolder in @('Downloads', 'Logs', 'MOF', 'LCM', 'Reports', 'History')) {
+    $placeholder = Join-Path $dscstage "$runtimefolder\.gitkeep"
     '' | Out-File -FilePath $placeholder -Encoding ASCII
 }
 
 # ---------------------------------------------------------------------------
-# Step 4: Copy scripts and configs
+# step 4: copy scripts and configs
 # ---------------------------------------------------------------------------
-Write-Step "Copying scripts and configuration files"
+Write-Step "copying scripts and configuration files"
 
-$FilesToCopy = @(
-    @{ Src = 'Bootstrap.ps1';                          Dst = '' }
-    @{ Src = 'Apply.ps1';                              Dst = '' }
-    @{ Src = 'DriftTest.ps1';                          Dst = '' }
-    @{ Src = 'Configurations\WindowsServer2016STIG.ps1'; Dst = 'Configurations' }
+# list of source files relative to sourceroot and their destination subfolder in the package
+$filestocopy = @(
+    @{ src = 'Bootstrap.ps1';                            dst = '' }
+    @{ src = 'Apply.ps1';                                dst = '' }
+    @{ src = 'DriftTest.ps1';                            dst = '' }
+    @{ src = 'Configurations\WindowsServer2016STIG.ps1'; dst = 'Configurations' }
 )
 
-foreach ($file in $FilesToCopy) {
-    $srcPath = Join-Path $SourceRoot $file.Src
-    $dstDir  = if ($file.Dst) { Join-Path $DSCStage $file.Dst } else { $DSCStage }
-    if (-not (Test-Path $srcPath)) { Write-Fail "Source file not found: $srcPath" }
-    Copy-Item -Path $srcPath -Destination $dstDir -Force
-    Write-OK $file.Src
+foreach ($file in $filestocopy) {
+    $srcpath = Join-Path $sourceroot $file.src
+    $dstdir  = if ($file.dst) { Join-Path $dscstage $file.dst } else { $dscstage }
+    if (-not (Test-Path $srcpath)) { Write-Fail "source file not found: $srcpath" }
+    Copy-Item -Path $srcpath -Destination $dstdir -Force
+    Write-OK $file.src
 }
 
 # ---------------------------------------------------------------------------
-# Step 5: Write stamped VERSION into package
+# step 5: write stamped version into package
 # ---------------------------------------------------------------------------
-Write-Step "Writing stamped VERSION into package"
+Write-Step "writing stamped version into package"
 
-$StampedVersionPath = Join-Path $DSCStage 'VERSION'
-$VersionData | ConvertTo-Json -Depth 5 | Out-File -FilePath $StampedVersionPath -Encoding UTF8
-Write-OK "VERSION stamped"
+# overwrite the version file in staging with the build-stamped copy
+$stampedversionpath = Join-Path $dscstage 'VERSION'
+$versiondata | ConvertTo-Json -Depth 5 | Out-File -FilePath $stampedversionpath -Encoding UTF8
+Write-OK "version stamped"
 
 # ---------------------------------------------------------------------------
-# Step 6: Copy vendored modules
+# step 6: copy vendored modules
 # ---------------------------------------------------------------------------
-Write-Step "Copying vendored modules"
+Write-Step "copying vendored modules"
 
-$ModuleDest = Join-Path $DSCStage 'Modules'
-Get-ChildItem -Path $ModulesPath -Directory | ForEach-Object {
-    Copy-Item -Path $_.FullName -Destination (Join-Path $ModuleDest $_.Name) -Recurse -Force
+$moduledest = Join-Path $dscstage 'Modules'
+
+# copy each module folder wholesale into the package modules directory
+Get-ChildItem -Path $modulespath -Directory | ForEach-Object {
+    Copy-Item -Path $_.FullName -Destination (Join-Path $moduledest $_.Name) -Recurse -Force
     Write-OK $_.Name
 }
 
 # ---------------------------------------------------------------------------
-# Step 7: Build ZIP
+# step 7: build zip
 # ---------------------------------------------------------------------------
-Write-Step "Building ZIP"
+Write-Step "building zip"
 
-$null = New-Item -ItemType Directory -Path $OutputPath -Force
+$null = New-Item -ItemType Directory -Path $outputpath -Force
 
-$ZipName = "DSC_v$Version.zip"
-$ZipPath = Join-Path $OutputPath $ZipName
+$zipname = "DSC_v$version.zip"
+$zippath = Join-Path $outputpath $zipname
 
-if (Test-Path $ZipPath) {
-    Remove-Item $ZipPath -Force
-    Write-Host "    Removed existing $ZipName"
+# remove any existing zip for this version before recreating it
+if (Test-Path $zippath) {
+    Remove-Item $zippath -Force
+    Write-Host "    removed existing $zipname"
 }
 
+# use .net compression directly — avoids Compress-Archive 2gb limit
 Add-Type -AssemblyName System.IO.Compression.FileSystem
 [System.IO.Compression.ZipFile]::CreateFromDirectory(
-    $StagingRoot,   # Zip from staging root so DSC\ is the top-level folder in the archive
-    $ZipPath,
+    $stagingroot,   # zip from staging root so DSC\ is the top-level folder in the archive
+    $zippath,
     [System.IO.Compression.CompressionLevel]::Optimal,
-    $false          # Don't include base directory name
+    $false          # don't include the staging root directory name itself in the zip
 )
 
-Write-OK "ZIP created: $ZipPath"
+Write-OK "zip created: $zippath"
 
-# Cleanup staging
-Remove-Item -Path $StagingRoot -Recurse -Force
+# remove the temp staging tree now that the zip is built
+Remove-Item -Path $stagingroot -Recurse -Force
 
 # ---------------------------------------------------------------------------
-# Summary
+# summary
 # ---------------------------------------------------------------------------
-$ZipSize = [math]::Round((Get-Item $ZipPath).Length / 1MB, 2)
+$zipsize = [math]::Round((Get-Item $zippath).Length / 1MB, 2)
 Write-Host "`n========================================" -ForegroundColor Cyan
-Write-Host "  Package ready" -ForegroundColor Cyan
-Write-Host "  File    : $ZipPath" -ForegroundColor White
-Write-Host "  Version : $Version" -ForegroundColor White
-Write-Host "  Size    : $ZipSize MB" -ForegroundColor White
-Write-Host "  Next    : Upload to Azure Blob Storage" -ForegroundColor White
+Write-Host "  package ready" -ForegroundColor Cyan
+Write-Host "  file    : $zippath" -ForegroundColor White
+Write-Host "  version : $version" -ForegroundColor White
+Write-Host "  size    : $zipsize mb" -ForegroundColor White
+Write-Host "  next    : upload to azure blob storage" -ForegroundColor White
 Write-Host "========================================`n" -ForegroundColor Cyan
-Write-Log "========== Build complete — $ZipName ($ZipSize MB) =========="
+Write-Log "========== build complete — $zipname ($zipsize mb) =========="
 
 }
 catch {
-    Write-Log "FATAL ERROR: $_" 'ERROR'
-    Write-Log "Stack trace: $($_.ScriptStackTrace)" 'ERROR'
-    Write-Error "Build failed: $_"
+    Write-Log "fatal error: $_" 'error'
+    Write-Log "stack trace: $($_.ScriptStackTrace)" 'error'
+    Write-Error "build failed: $_"
     exit 1
 }

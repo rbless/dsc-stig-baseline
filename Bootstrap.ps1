@@ -1,183 +1,196 @@
 #Requires -RunAsAdministrator
 <#
 .SYNOPSIS
-    Bootstraps the DSC environment on a freshly provisioned VM.
+    bootstraps the dsc environment on a freshly provisioned vm.
 
 .DESCRIPTION
-    Performs three steps in sequence:
-      1. Installs vendored PowerShell modules from C:\DSC\Modules (no internet required)
-      2. Configures the Local Configuration Manager (LCM)
-      3. Compiles the DSC configuration to a MOF file
+    performs three steps in sequence:
+      1. installs vendored powershell modules from C:\DSC\Modules (no internet required)
+      2. configures the local configuration manager (lcm)
+      3. compiles the dsc configuration to a mof file
 
-    Run this script FIRST after the ZIP is extracted.
-    Then run Apply.ps1 to enforce the configuration.
+    run this script first after the zip is extracted.
+    then run Apply.ps1 to enforce the configuration.
 
-.PARAMETER DSCRoot
-    Root path where the DSC ZIP was extracted. Default: C:\DSC
+.PARAMETER dscroot
+    root path where the dsc zip was extracted. default: C:\DSC
 
-.PARAMETER OsRole
-    MS = Member Server (default) | DC = Domain Controller
+.PARAMETER osrole
+    ms = member server (default) | dc = domain controller
 
 .EXAMPLE
     .\Bootstrap.ps1
-    .\Bootstrap.ps1 -OsRole DC
+    .\Bootstrap.ps1 -OsRole dc
 #>
 
 [CmdletBinding()]
 param (
-    [string]$DSCRoot = 'C:\DSC',
+    [string]$dscroot = 'C:\DSC',
 
-    [ValidateSet('MS', 'DC')]
-    [string]$OsRole = 'MS'
+    [ValidateSet('ms', 'dc')]
+    [string]$osrole = 'ms'
 )
 
 Set-StrictMode -Version Latest
-$ErrorActionPreference = 'Stop'
+$erroractionpreference = 'Stop'
 
 # ---------------------------------------------------------------------------
-# Logging
+# logging
 # ---------------------------------------------------------------------------
-$LogDir  = Join-Path $DSCRoot 'Logs'
-$null    = New-Item -ItemType Directory -Path $LogDir -Force
-$LogFile = Join-Path $LogDir "Bootstrap_$(Get-Date -Format 'yyyyMMdd_HHmmss').log"
+$logdir  = Join-Path $dscroot 'Logs'
+$null    = New-Item -ItemType Directory -Path $logdir -Force
+$logfile = Join-Path $logdir "Bootstrap_$(Get-Date -Format 'yyyyMMdd_HHmmss').log"
 
 function Write-Log {
     param(
-        [string]$Message,
-        [ValidateSet('INFO','WARN','ERROR')]
-        [string]$Level = 'INFO'
+        [string]$message,
+        [ValidateSet('info','warn','error')]
+        [string]$level = 'info'
     )
-    $entry = "[$(Get-Date -Format 'yyyy-MM-dd HH:mm:ss')] [$Level] $Message"
-    Add-Content -Path $LogFile -Value $entry
-    switch ($Level) {
-        'WARN'  { Write-Warning $entry }
-        'ERROR' { Write-Error   $entry }
+    $entry = "[$(Get-Date -Format 'yyyy-MM-dd HH:mm:ss')] [$level] $message"
+    Add-Content -Path $logfile -Value $entry
+    switch ($level) {
+        'warn'  { Write-Warning $entry }
+        'error' { Write-Error   $entry }
         default { Write-Host    $entry }
     }
 }
 
 # ---------------------------------------------------------------------------
-# Main
+# main
 # ---------------------------------------------------------------------------
 try {
-    Write-Log "========== Bootstrap started on $env:COMPUTERNAME =========="
-    Write-Log "DSCRoot : $DSCRoot"
-    Write-Log "OsRole  : $OsRole"
-    Write-Log "Log     : $LogFile"
+    Write-Log "========== bootstrap started on $env:COMPUTERNAME =========="
+    Write-Log "dscroot : $dscroot"
+    Write-Log "osrole  : $osrole"
+    Write-Log "log     : $logfile"
 
     # -----------------------------------------------------------------------
-    # Step 0: Archive previous install if one exists
+    # step 0: archive previous install if one exists
     # -----------------------------------------------------------------------
-    Write-Log "--- Step 0: Checking for previous install ---"
+    Write-Log "--- step 0: checking for previous install ---"
 
-    $PreviousVersionFile = Join-Path $DSCRoot 'VERSION'
-    if (Test-Path $PreviousVersionFile) {
+    # check for a version file left by a prior run — if found, archive before overwriting
+    $previousversionfile = Join-Path $dscroot 'VERSION'
+    if (Test-Path $previousversionfile) {
         try {
-            $PrevVersion = (Get-Content $PreviousVersionFile -Raw | ConvertFrom-Json).PackageVersion
-            $ArchiveName = "v${PrevVersion}_$(Get-Date -Format 'yyyyMMdd_HHmmss')"
-            $ArchiveDest = Join-Path $DSCRoot "History\$ArchiveName"
+            # read the previous version number to use as the archive folder name
+            $prevversion = (Get-Content $previousversionfile -Raw | ConvertFrom-Json).PackageVersion
+            $archivename = "v${prevversion}_$(Get-Date -Format 'yyyyMMdd_HHmmss')"
+            $archivedest = Join-Path $dscroot "History\$archivename"
 
-            $null = New-Item -ItemType Directory -Path $ArchiveDest -Force
+            $null = New-Item -ItemType Directory -Path $archivedest -Force
 
-            # Archive scripts and configs only — not modules (too large), not runtime folders
-            $ToArchive = @('Bootstrap.ps1','Apply.ps1','DriftTest.ps1','VERSION','Configurations')
-            foreach ($item in $ToArchive) {
-                $itemPath = Join-Path $DSCRoot $item
-                if (Test-Path $itemPath) {
-                    Copy-Item -Path $itemPath -Destination $ArchiveDest -Recurse -Force
+            # copy scripts and configs only — skip modules (too large) and runtime folders
+            $toarchive = @('Bootstrap.ps1','Apply.ps1','DriftTest.ps1','VERSION','Configurations')
+            foreach ($item in $toarchive) {
+                $itempath = Join-Path $dscroot $item
+                if (Test-Path $itempath) {
+                    Copy-Item -Path $itempath -Destination $archivedest -Recurse -Force
                 }
             }
 
-            Write-Log "Previous v$PrevVersion archived to History\$ArchiveName"
+            Write-Log "previous v$prevversion archived to History\$archivename"
         }
         catch {
-            Write-Log "Could not archive previous install (non-fatal): $_" 'WARN'
+            # archiving failure is non-fatal — log and continue with install
+            Write-Log "could not archive previous install (non-fatal): $_" 'warn'
         }
     }
     else {
-        Write-Log "No previous install detected — fresh deployment"
+        Write-Log "no previous install detected — fresh deployment"
     }
 
     # -----------------------------------------------------------------------
-    # Step 1: Install vendored modules
+    # step 1: install vendored modules
     # -----------------------------------------------------------------------
-    Write-Log "--- Step 1: Installing vendored modules ---"
+    Write-Log "--- step 1: installing vendored modules ---"
 
-    $ModuleSource = Join-Path $DSCRoot 'Modules'
-    $ModuleDest   = "$env:ProgramFiles\WindowsPowerShell\Modules"
+    $modulesource = Join-Path $dscroot 'Modules'
+    $moduledest   = "$env:ProgramFiles\WindowsPowerShell\Modules"
 
-    if (-not (Test-Path $ModuleSource)) {
-        throw "Module source path not found: $ModuleSource"
+    # abort if the vendored modules folder is missing from the extracted package
+    if (-not (Test-Path $modulesource)) {
+        throw "module source path not found: $modulesource"
     }
 
-    Get-ChildItem -Path $ModuleSource -Directory | ForEach-Object {
-        $destPath = Join-Path $ModuleDest $_.Name
-        if (Test-Path $destPath) {
-            Write-Log "Removing existing module: $($_.Name)"
-            Remove-Item -Path $destPath -Recurse -Force
+    # iterate each module subdirectory and copy it into the system module path
+    Get-ChildItem -Path $modulesource -Directory | ForEach-Object {
+        $destpath = Join-Path $moduledest $_.Name
+        # remove existing version first to avoid stale file conflicts
+        if (Test-Path $destpath) {
+            Write-Log "removing existing module: $($_.Name)"
+            Remove-Item -Path $destpath -Recurse -Force
         }
-        Copy-Item -Path $_.FullName -Destination $destPath -Recurse -Force
-        Write-Log "Installed: $($_.Name)"
+        Copy-Item -Path $_.FullName -Destination $destpath -Recurse -Force
+        Write-Log "installed: $($_.Name)"
     }
 
-    Write-Log "All modules installed"
+    Write-Log "all modules installed"
 
     # -----------------------------------------------------------------------
-    # Step 2: Configure LCM
+    # step 2: configure lcm
     # -----------------------------------------------------------------------
-    Write-Log "--- Step 2: Configuring Local Configuration Manager ---"
+    Write-Log "--- step 2: configuring local configuration manager ---"
 
+    # define the lcm meta-configuration inline — push mode with auto-reboot enabled
     [DSCLocalConfigurationManager()]
-    Configuration LCMSettings {
+    Configuration lcmsettings {
         Node localhost {
             Settings {
-                RefreshMode                    = 'Push'
-                ConfigurationMode              = 'ApplyAndMonitor'
+                RefreshMode                    = 'push'
+                ConfigurationMode              = 'applyandmonitor'
                 RebootNodeIfNeeded             = $true
-                ActionAfterReboot              = 'ContinueConfiguration'
+                ActionAfterReboot              = 'continueconfiguration'
                 ConfigurationModeFrequencyMins = 15
                 AllowModuleOverwrite           = $true
             }
         }
     }
 
-    $LCMPath = Join-Path $DSCRoot 'LCM'
-    $null    = New-Item -ItemType Directory -Path $LCMPath -Force
-    LCMSettings -OutputPath $LCMPath | Out-Null
-    Set-DscLocalConfigurationManager -Path $LCMPath -Force -Verbose
-    Write-Log "LCM configured (Mode: ApplyAndMonitor, Push)"
+    $lcmpath = Join-Path $dscroot 'LCM'
+    $null    = New-Item -ItemType Directory -Path $lcmpath -Force
+
+    # compile the lcm meta-configuration to a meta-mof, then apply it
+    lcmsettings -OutputPath $lcmpath | Out-Null
+    Set-DscLocalConfigurationManager -Path $lcmpath -Force -Verbose
+    Write-Log "lcm configured (mode: applyandmonitor, push)"
 
     # -----------------------------------------------------------------------
-    # Step 3: Compile MOF
+    # step 3: compile mof
     # -----------------------------------------------------------------------
-    Write-Log "--- Step 3: Compiling DSC configuration ---"
+    Write-Log "--- step 3: compiling dsc configuration ---"
 
-    $ConfigScript = Join-Path $DSCRoot 'Configurations\WindowsServer2016STIG.ps1'
-    if (-not (Test-Path $ConfigScript)) {
-        throw "Configuration script not found: $ConfigScript"
+    $configscript = Join-Path $dscroot 'Configurations\WindowsServer2016STIG.ps1'
+
+    # abort if the configuration script is missing from the extracted package
+    if (-not (Test-Path $configscript)) {
+        throw "configuration script not found: $configscript"
     }
 
-    # Dot-source to load the Configuration block into scope
-    . $ConfigScript
+    # dot-source to load the Configuration block into the current scope so it can be called
+    . $configscript
 
-    $MofPath = Join-Path $DSCRoot 'MOF'
-    $null    = New-Item -ItemType Directory -Path $MofPath -Force
+    $mofpath = Join-Path $dscroot 'MOF'
+    $null    = New-Item -ItemType Directory -Path $mofpath -Force
 
-    WindowsServer2016STIG `
+    # compile the configuration to a mof file targeting localhost
+    windowsserver2016stig `
         -NodeName   'localhost' `
-        -OsRole     $OsRole `
-        -OutputPath $MofPath
+        -OsRole     $osrole `
+        -OutputPath $mofpath
 
-    $MofFile = Get-ChildItem -Path $MofPath -Filter '*.mof' | Select-Object -First 1
-    if (-not $MofFile) {
-        throw "MOF compilation produced no output in $MofPath"
+    # verify the mof was actually produced before declaring success
+    $moffile = Get-ChildItem -Path $mofpath -Filter '*.mof' | Select-Object -First 1
+    if (-not $moffile) {
+        throw "mof compilation produced no output in $mofpath"
     }
 
-    Write-Log "MOF compiled: $($MofFile.FullName)"
-    Write-Log "========== Bootstrap complete. Run Apply.ps1 to enforce configuration. =========="
+    Write-Log "mof compiled: $($moffile.FullName)"
+    Write-Log "========== bootstrap complete. run Apply.ps1 to enforce configuration. =========="
 }
 catch {
-    Write-Log "FATAL ERROR: $_" 'ERROR'
-    Write-Log "Stack trace: $($_.ScriptStackTrace)" 'ERROR'
+    Write-Log "fatal error: $_" 'error'
+    Write-Log "stack trace: $($_.ScriptStackTrace)" 'error'
     exit 1
 }

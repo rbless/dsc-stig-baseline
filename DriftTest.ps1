@@ -1,21 +1,21 @@
 #Requires -RunAsAdministrator
 <#
 .SYNOPSIS
-    Tests this node against the DSC STIG configuration and reports any drift.
+    tests this node against the dsc stig configuration and reports any drift.
 
 .DESCRIPTION
-    Runs Test-DscConfiguration and produces:
-      - Console output with pass/fail summary
-      - A timestamped JSON report in C:\DSC\Logs\
+    runs Test-DscConfiguration and produces:
+      - console output with pass/fail summary
+      - a timestamped json report in C:\DSC\Logs\
 
-    Returns exit code 0 if compliant, 1 if drift detected.
-    Suitable for use as a scheduled task or pipeline health check.
+    returns exit code 0 if compliant, 1 if drift detected.
+    suitable for use as a scheduled task or pipeline health check.
 
-.PARAMETER DSCRoot
-    Root path where the DSC ZIP was extracted. Default: C:\DSC
+.PARAMETER dscroot
+    root path where the dsc zip was extracted. default: C:\DSC
 
-.PARAMETER AutoRemediate
-    If $true, calls Apply.ps1 automatically when drift is detected. Default: $false
+.PARAMETER autoremediate
+    if $true, calls Apply.ps1 automatically when drift is detected. default: $false
 
 .EXAMPLE
     .\DriftTest.ps1
@@ -24,113 +24,121 @@
 
 [CmdletBinding()]
 param (
-    [string]$DSCRoot       = 'C:\DSC',
-    [bool]$AutoRemediate   = $false
+    [string]$dscroot     = 'C:\DSC',
+    [bool]$autoremediate = $false
 )
 
 Set-StrictMode -Version Latest
-$ErrorActionPreference = 'Stop'
+$erroractionpreference = 'Stop'
 
 # ---------------------------------------------------------------------------
-# Logging
+# logging
 # ---------------------------------------------------------------------------
-$Timestamp = Get-Date -Format 'yyyyMMdd_HHmmss'
-$LogDir    = Join-Path $DSCRoot 'Logs'
-$null      = New-Item -ItemType Directory -Path $LogDir -Force
-$LogFile   = Join-Path $LogDir "DriftTest_$Timestamp.log"
-$ReportFile = Join-Path $LogDir "DriftReport_$Timestamp.json"
+$timestamp  = Get-Date -Format 'yyyyMMdd_HHmmss'
+$logdir     = Join-Path $dscroot 'Logs'
+$null       = New-Item -ItemType Directory -Path $logdir -Force
+$logfile    = Join-Path $logdir "DriftTest_$timestamp.log"
+$reportfile = Join-Path $logdir "DriftReport_$timestamp.json"
 
 function Write-Log {
     param(
-        [string]$Message,
-        [ValidateSet('INFO','WARN','ERROR')]
-        [string]$Level = 'INFO'
+        [string]$message,
+        [ValidateSet('info','warn','error')]
+        [string]$level = 'info'
     )
-    $entry = "[$(Get-Date -Format 'yyyy-MM-dd HH:mm:ss')] [$Level] $Message"
-    Add-Content -Path $LogFile -Value $entry
-    switch ($Level) {
-        'WARN'  { Write-Warning $entry }
-        'ERROR' { Write-Error   $entry }
+    $entry = "[$(Get-Date -Format 'yyyy-MM-dd HH:mm:ss')] [$level] $message"
+    Add-Content -Path $logfile -Value $entry
+    switch ($level) {
+        'warn'  { Write-Warning $entry }
+        'error' { Write-Error   $entry }
         default { Write-Host    $entry }
     }
 }
 
 # ---------------------------------------------------------------------------
-# Main
+# main
 # ---------------------------------------------------------------------------
 try {
-    Write-Log "========== Drift Test started on $env:COMPUTERNAME =========="
+    Write-Log "========== drift test started on $env:COMPUTERNAME =========="
 
-    $MofPath = Join-Path $DSCRoot 'MOF'
-    if (-not (Test-Path $MofPath)) {
-        throw "MOF directory not found at '$MofPath'. Run Bootstrap.ps1 first."
+    $mofpath = Join-Path $dscroot 'MOF'
+
+    # abort if mof directory is missing — bootstrap must run first
+    if (-not (Test-Path $mofpath)) {
+        throw "mof directory not found at '$mofpath'. run Bootstrap.ps1 first."
     }
 
-    Write-Log "Running Test-DscConfiguration..."
-    $result = Test-DscConfiguration -Path $MofPath -Detailed
+    # test the node against the compiled mof and return detailed per-resource results
+    Write-Log "running Test-DscConfiguration..."
+    $result = Test-DscConfiguration -Path $mofpath -Detailed
 
-    $inDesiredState = $result.InDesiredState
-    $driftedCount   = $result.ResourcesNotInDesiredState.Count
-    $compliantCount = $result.ResourcesInDesiredState.Count
+    $indesiredstate = $result.InDesiredState
+    $driftedcount   = $result.ResourcesNotInDesiredState.Count
+    $compliantcount = $result.ResourcesInDesiredState.Count
 
-    # Build report object
+    # build structured report object for json serialization
     $report = [ordered]@{
-        ComputerName           = $env:COMPUTERNAME
-        Timestamp              = (Get-Date -Format 'o')
-        InDesiredState         = $inDesiredState
-        CompliantResourceCount = $compliantCount
-        DriftedResourceCount   = $driftedCount
-        DriftedResources       = @(
+        computername           = $env:COMPUTERNAME
+        timestamp              = (Get-Date -Format 'o')
+        indesiredstate         = $indesiredstate
+        compliantresourcecount = $compliantcount
+        driftedresourcecount   = $driftedcount
+        driftedresources       = @(
+            # enumerate each resource that failed the test and capture key identifiers
             $result.ResourcesNotInDesiredState | ForEach-Object {
                 [ordered]@{
-                    ResourceId   = $_.ResourceId
-                    ModuleName   = $_.ModuleName
-                    DurationSecs = [math]::Round($_.Duration.TotalSeconds, 2)
+                    resourceid   = $_.ResourceId
+                    modulename   = $_.ModuleName
+                    durationsecs = [math]::Round($_.Duration.TotalSeconds, 2)
                 }
             }
         )
-        CompliantResources     = @(
+        compliantresources     = @(
+            # enumerate each resource that passed the test
             $result.ResourcesInDesiredState | ForEach-Object {
                 [ordered]@{
-                    ResourceId   = $_.ResourceId
-                    ModuleName   = $_.ModuleName
-                    DurationSecs = [math]::Round($_.Duration.TotalSeconds, 2)
+                    resourceid   = $_.ResourceId
+                    modulename   = $_.ModuleName
+                    durationsecs = [math]::Round($_.Duration.TotalSeconds, 2)
                 }
             }
         )
     }
 
-    # Write JSON report
-    $report | ConvertTo-Json -Depth 6 | Out-File -FilePath $ReportFile -Encoding UTF8
-    Write-Log "Report written: $ReportFile"
+    # write json report to disk for pipeline consumption or audit trail
+    $report | ConvertTo-Json -Depth 6 | Out-File -FilePath $reportfile -Encoding UTF8
+    Write-Log "report written: $reportfile"
 
-    # Summary
-    if ($inDesiredState) {
-        Write-Log "RESULT: COMPLIANT — All $compliantCount resources in desired state"
-        Write-Log "========== Drift Test complete =========="
+    # evaluate overall compliance and branch on result
+    if ($indesiredstate) {
+        Write-Log "result: compliant — all $compliantcount resources in desired state"
+        Write-Log "========== drift test complete =========="
         exit 0
     }
     else {
-        Write-Log "RESULT: DRIFT DETECTED — $driftedCount resource(s) out of desired state" 'WARN'
+        Write-Log "result: drift detected — $driftedcount resource(s) out of desired state" 'warn'
+
+        # log each drifted resource by id for quick triage
         $result.ResourcesNotInDesiredState | ForEach-Object {
-            Write-Log "  [DRIFT] $($_.ResourceId)" 'WARN'
+            Write-Log "  [drift] $($_.ResourceId)" 'warn'
         }
 
-        if ($AutoRemediate) {
-            Write-Log "AutoRemediate is enabled — invoking Apply.ps1" 'WARN'
-            $ApplyScript = Join-Path $DSCRoot 'Apply.ps1'
-            & $ApplyScript -DSCRoot $DSCRoot
+        # if autoremediate is enabled, invoke Apply.ps1 to push the config back into state
+        if ($autoremediate) {
+            Write-Log "autoremediate is enabled — invoking Apply.ps1" 'warn'
+            $applyscript = Join-Path $dscroot 'Apply.ps1'
+            & $applyscript -dscroot $dscroot
         }
         else {
-            Write-Log "AutoRemediate is disabled. Run Apply.ps1 manually to remediate." 'WARN'
+            Write-Log "autoremediate is disabled. run Apply.ps1 manually to remediate." 'warn'
         }
 
-        Write-Log "========== Drift Test complete =========="
+        Write-Log "========== drift test complete =========="
         exit 1
     }
 }
 catch {
-    Write-Log "FATAL ERROR: $_" 'ERROR'
-    Write-Log "Stack trace: $($_.ScriptStackTrace)" 'ERROR'
+    Write-Log "fatal error: $_" 'error'
+    Write-Log "stack trace: $($_.ScriptStackTrace)" 'error'
     exit 2
 }

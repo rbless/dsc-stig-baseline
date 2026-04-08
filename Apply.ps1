@@ -36,6 +36,7 @@ $logdir  = Join-Path $dscroot 'Logs'
 $null    = New-Item -ItemType Directory -Path $logdir -Force
 $logfile = Join-Path $logdir "Apply_$(Get-Date -Format 'yyyyMMdd_HHmmss').log"
 
+##### write-log: accepts a message string and optional level (info/warn/error). builds a timestamped entry string, appends it to the log file, then routes output to write-warning, write-error, or write-host depending on level #####
 function Write-Log {
     param(
         [string]$message,
@@ -59,15 +60,16 @@ try {
 
     $mofpath = Join-Path $dscroot 'MOF'
 
-    # abort if mof directory is missing — bootstrap must run first
+    ##### check if the mof directory exists — if missing, bootstrap has not run yet, throw and abort before attempting to apply nothing #####
     if (-not (Test-Path $mofpath)) {
         throw "mof directory not found at '$mofpath'. run Bootstrap.ps1 first."
     }
 
-    # abort if no mof file exists inside the mof directory
+    ##### scan the mof directory for a .mof file — selects the first match only, returns null if compilation never produced output #####
     $moffile = Get-ChildItem -Path $mofpath -Filter '*.mof' -ErrorAction SilentlyContinue |
                Select-Object -First 1
 
+    ##### check if the mof file scan returned anything — if null, compilation never completed, throw and abort #####
     if (-not $moffile) {
         throw "no .mof file found in '$mofpath'. run Bootstrap.ps1 to compile the configuration."
     }
@@ -75,7 +77,7 @@ try {
     Write-Log "applying mof: $($moffile.FullName)"
     Write-Log "force: $force"
 
-    # splat parameters for Start-DscConfiguration for readability
+    ##### splat Start-DscConfiguration parameters — path targets the mof directory, wait blocks the script until dsc finishes, force re-applies all resources even if already compliant #####
     $params = @{
         Path    = $mofpath
         Wait    = $true
@@ -85,7 +87,7 @@ try {
 
     Start-DscConfiguration @params
 
-    # post-apply compliance check — warn if node is still out of state (may need reboot)
+    ##### post-apply compliance check — tests the node against the same mof to confirm all resources landed in desired state. warns if not, as a pending reboot may be needed for some resources to settle #####
     $testresult = Test-DscConfiguration -Path $mofpath
     if ($testresult) {
         Write-Log "========== apply complete — node is in desired state =========="

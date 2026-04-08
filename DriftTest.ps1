@@ -40,6 +40,7 @@ $null       = New-Item -ItemType Directory -Path $logdir -Force
 $logfile    = Join-Path $logdir "DriftTest_$timestamp.log"
 $reportfile = Join-Path $logdir "DriftReport_$timestamp.json"
 
+##### write-log: accepts a message string and optional level (info/warn/error). builds a timestamped entry string, appends it to the log file, then routes output to write-warning, write-error, or write-host depending on level #####
 function Write-Log {
     param(
         [string]$message,
@@ -63,12 +64,12 @@ try {
 
     $mofpath = Join-Path $dscroot 'MOF'
 
-    # abort if mof directory is missing — bootstrap must run first
+    ##### check if the mof directory exists — if missing, bootstrap has not run yet, throw and abort before attempting a test against nothing #####
     if (-not (Test-Path $mofpath)) {
         throw "mof directory not found at '$mofpath'. run Bootstrap.ps1 first."
     }
 
-    # test the node against the compiled mof and return detailed per-resource results
+    ##### run Test-DscConfiguration against the compiled mof with -detailed to get per-resource pass/fail results rather than a single boolean #####
     Write-Log "running Test-DscConfiguration..."
     $result = Test-DscConfiguration -Path $mofpath -Detailed
 
@@ -76,7 +77,7 @@ try {
     $driftedcount   = $result.ResourcesNotInDesiredState.Count
     $compliantcount = $result.ResourcesInDesiredState.Count
 
-    # build structured report object for json serialization
+    ##### build a structured ordered hashtable for json serialization — captures node name, timestamp, overall state, and per-resource detail for both drifted and compliant resources #####
     $report = [ordered]@{
         computername           = $env:COMPUTERNAME
         timestamp              = (Get-Date -Format 'o')
@@ -84,7 +85,7 @@ try {
         compliantresourcecount = $compliantcount
         driftedresourcecount   = $driftedcount
         driftedresources       = @(
-            # enumerate each resource that failed the test and capture key identifiers
+            ##### iterate each resource that failed the test — captures resourceid, module name, and how long the test took for triage #####
             $result.ResourcesNotInDesiredState | ForEach-Object {
                 [ordered]@{
                     resourceid   = $_.ResourceId
@@ -94,7 +95,7 @@ try {
             }
         )
         compliantresources     = @(
-            # enumerate each resource that passed the test
+            ##### iterate each resource that passed the test — same shape as driftedresources for consistent report structure #####
             $result.ResourcesInDesiredState | ForEach-Object {
                 [ordered]@{
                     resourceid   = $_.ResourceId
@@ -105,11 +106,11 @@ try {
         )
     }
 
-    # write json report to disk for pipeline consumption or audit trail
+    ##### serialize the report hashtable to json and write it to disk — used by pipelines and audit processes to consume results without parsing log text #####
     $report | ConvertTo-Json -Depth 6 | Out-File -FilePath $reportfile -Encoding UTF8
     Write-Log "report written: $reportfile"
 
-    # evaluate overall compliance and branch on result
+    ##### branch on overall compliance result — exit 0 if clean, otherwise log each drifted resource and optionally invoke Apply.ps1 to remediate #####
     if ($indesiredstate) {
         Write-Log "result: compliant — all $compliantcount resources in desired state"
         Write-Log "========== drift test complete =========="
@@ -118,12 +119,12 @@ try {
     else {
         Write-Log "result: drift detected — $driftedcount resource(s) out of desired state" 'warn'
 
-        # log each drifted resource by id for quick triage
+        ##### iterate each drifted resource and log its id individually so the log shows exactly which controls slipped without requiring json parsing #####
         $result.ResourcesNotInDesiredState | ForEach-Object {
             Write-Log "  [drift] $($_.ResourceId)" 'warn'
         }
 
-        # if autoremediate is enabled, invoke Apply.ps1 to push the config back into state
+        ##### check autoremediate flag — if true, call Apply.ps1 to push the config back into desired state. if false, log that manual remediation is needed and exit 1 #####
         if ($autoremediate) {
             Write-Log "autoremediate is enabled — invoking Apply.ps1" 'warn'
             $applyscript = Join-Path $dscroot 'Apply.ps1'

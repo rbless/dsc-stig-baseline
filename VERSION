@@ -1,0 +1,19 @@
+{
+  "PackageVersion": "1.0.0",
+  "StigVersion": "2.6",
+  "OsTarget": "Windows Server 2016",
+  "PowerSTIGVersion": "4.22.0",
+  "BuildDate": "",
+  "BuiltBy": "",
+  "Configs": {
+    "WindowsServer2016STIG": "1.0.0"
+  },
+  "ChangeLog": [
+    {
+      "Version": "1.0.0",
+      "Date": "",
+      "Author": "",
+      "Notes": "Initial release"
+    }
+  ]
+}

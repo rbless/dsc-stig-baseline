@@ -48,11 +48,42 @@ Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
 
 # ---------------------------------------------------------------------------
+# Logging
+# ---------------------------------------------------------------------------
+$LogDir  = Join-Path $SourceRoot 'Logs'
+$null    = New-Item -ItemType Directory -Path $LogDir -Force
+$LogFile = Join-Path $LogDir "Build_$(Get-Date -Format 'yyyyMMdd_HHmmss').log"
+
+function Write-Log {
+    param(
+        [string]$Message,
+        [ValidateSet('INFO','WARN','ERROR')]
+        [string]$Level = 'INFO'
+    )
+    $entry = "[$(Get-Date -Format 'yyyy-MM-dd HH:mm:ss')] [$Level] $Message"
+    Add-Content -Path $LogFile -Value $entry
+}
+
+# ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
-function Write-Step { param([string]$Msg) Write-Host "`n==> $Msg" -ForegroundColor Cyan }
-function Write-OK   { param([string]$Msg) Write-Host "    [OK] $Msg" -ForegroundColor Green }
-function Write-Fail { param([string]$Msg) Write-Error "    [FAIL] $Msg" }
+function Write-Step {
+    param([string]$Msg)
+    Write-Host "`n==> $Msg" -ForegroundColor Cyan
+    Write-Log $Msg
+}
+function Write-OK {
+    param([string]$Msg)
+    Write-Host "    [OK] $Msg" -ForegroundColor Green
+    Write-Log "[OK] $Msg"
+}
+function Write-Fail {
+    param([string]$Msg)
+    Write-Log $Msg 'ERROR'
+    Write-Error "    [FAIL] $Msg"
+}
+
+try {
 
 # ---------------------------------------------------------------------------
 # Step 1: Load and validate VERSION
@@ -227,3 +258,12 @@ Write-Host "  Version : $Version" -ForegroundColor White
 Write-Host "  Size    : $ZipSize MB" -ForegroundColor White
 Write-Host "  Next    : Upload to Azure Blob Storage" -ForegroundColor White
 Write-Host "========================================`n" -ForegroundColor Cyan
+Write-Log "========== Build complete — $ZipName ($ZipSize MB) =========="
+
+}
+catch {
+    Write-Log "FATAL ERROR: $_" 'ERROR'
+    Write-Log "Stack trace: $($_.ScriptStackTrace)" 'ERROR'
+    Write-Error "Build failed: $_"
+    exit 1
+}

@@ -67,7 +67,7 @@ try {
     }
 
     Write-Log "Running Test-DscConfiguration..."
-    $result = Test-DscConfiguration -Detailed
+    $result = Test-DscConfiguration -Path $MofPath -Detailed
 
     $inDesiredState = $result.InDesiredState
     $driftedCount   = $result.ResourcesNotInDesiredState.Count

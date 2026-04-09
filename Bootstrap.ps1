@@ -96,11 +96,11 @@ try {
         }
         catch {
             ##### archiving failure is non-fatal — log the warning and continue with install rather than blocking the whole bootstrap #####
-            Write-Log "could not archive previous install (non-fatal): $_" 'warn'
+            Write-Log "could not archive previous install (non-fatal) : $_" 'warn'
         }
     }
     else {
-        Write-Log "no previous install detected — fresh deployment"
+        Write-Log "no previous install detected - fresh deployment"
     }
 
     # -----------------------------------------------------------------------

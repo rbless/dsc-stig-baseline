@@ -93,7 +93,7 @@ try {
     ##### post-apply compliance check — tests the node against the same mof to confirm all resources landed in desired state. warns if not, as a pending reboot may be needed for some resources to settle #####
     $testresult = Test-DscConfiguration -Path $mofpath
     if ($testresult) {
-        Write-Log "========== apply complete — node is in desired state =========="
+        Write-Log "========== apply complete - node is in desired state =========="
     }
     else {
         Write-Log "apply finished but node is not fully in desired state. a reboot may be required." 'warn'

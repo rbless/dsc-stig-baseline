@@ -112,12 +112,12 @@ try {
 
     ##### branch on overall compliance result — exit 0 if clean, otherwise log each drifted resource and optionally invoke Apply.ps1 to remediate #####
     if ($indesiredstate) {
-        Write-Log "result: compliant — all $compliantcount resources in desired state"
+        Write-Log "result: compliant - all $compliantcount resources in desired state"
         Write-Log "========== drift test complete =========="
         exit 0
     }
     else {
-        Write-Log "result: drift detected — $driftedcount resource(s) out of desired state" 'warn'
+        Write-Log "result: drift detected - $driftedcount resource(s) out of desired state" 'warn'
 
         ##### iterate each drifted resource and log its id individually so the log shows exactly which controls slipped without requiring json parsing #####
         $result.ResourcesNotInDesiredState | ForEach-Object {
@@ -126,7 +126,7 @@ try {
 
         ##### check autoremediate flag — if true, call Apply.ps1 to push the config back into desired state. if false, log that manual remediation is needed and exit 1 #####
         if ($autoremediate) {
-            Write-Log "autoremediate is enabled — invoking Apply.ps1" 'warn'
+            Write-Log "autoremediate is enabled - invoking Apply.ps1" 'warn'
             $applyscript = Join-Path $dscroot 'Apply.ps1'
             & $applyscript -dscroot $dscroot
         }

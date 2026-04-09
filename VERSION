@@ -1,5 +1,5 @@
 {
-  "PackageVersion": "1.0.0",
+  "PackageVersion": "1.1.0",
   "StigVersion": "2.6",
   "OsTarget": "Windows Server 2016",
   "PowerSTIGVersion": "4.22.0",
@@ -9,6 +9,12 @@
     "WindowsServer2016STIG": "1.0.0"
   },
   "ChangeLog": [
+    {
+      "Version": "1.1.0",
+      "Date": "2026-04-09",
+      "Author": "Ryan",
+      "Notes": "Add VendorModules.ps1; move config to Configurations/; fix Bootstrap previousversionfile bug"
+    },
     {
       "Version": "1.0.0",
       "Date": "",

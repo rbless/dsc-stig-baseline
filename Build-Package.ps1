@@ -19,7 +19,7 @@
 
 .PARAMETER modulespath
     where VendorModules.ps1 dropped the downloaded modules.
-    default: <sourceroot>\VendorOutput\Modules
+    default: C:\DSC\VendorOutput\Modules
 
 .PARAMETER outputpath
     where the final zip is written. default: <sourceroot>\dist

@@ -72,6 +72,7 @@ try {
     Write-Log "--- step 0: checking for previous install ---"
 
     ##### check for a version file left by a prior run — if found, archive scripts and configs before overwriting so rollback is possible #####
+    $previousversionfile = Join-Path $dscroot 'VERSION'
     if (Test-Path $previousversionfile) {
         try {
             ##### read the previous version number from the json version file to use as a human-readable archive folder name #####

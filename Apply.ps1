@@ -30,7 +30,8 @@ Set-StrictMode -Version Latest
 $erroractionpreference = 'Stop'
 
 # ---------------------------------------------------------------------------
-# logging
+# logging plan to add to data analytics later - for now, just a timestamped log file in the dsc root. this will be helpful for troubleshooting and auditing, 
+#and can be extended later to include more structured data or remote logging
 # ---------------------------------------------------------------------------
 $logdir  = Join-Path $dscroot 'Logs'
 $null    = New-Item -ItemType Directory -Path $logdir -Force
@@ -53,7 +54,8 @@ function Write-Log {
 }
 
 # ---------------------------------------------------------------------------
-# main
+# main - thank god for ai here, this is a pretty straightforward script but the error handling and logging is a bit verbose. the main logic is just to find the mof 
+#file and call Start-DscConfiguration with it, then test compliance afterward. the rest is just safety checks and logging.
 # ---------------------------------------------------------------------------
 try {
     Write-Log "========== apply started on $env:COMPUTERNAME =========="
@@ -77,7 +79,8 @@ try {
     Write-Log "applying mof: $($moffile.FullName)"
     Write-Log "force: $force"
 
-    ##### splat Start-DscConfiguration parameters — path targets the mof directory, wait blocks the script until dsc finishes, force re-applies all resources even if already compliant #####
+    ##### splat Start-DscConfiguration parameters — path targets the mof directory, wait blocks the script until dsc finishes, 
+    ##### force re-applies all resources even if already compliant. splat means passing a hashtable of parameters #####
     $params = @{
         Path    = $mofpath
         Wait    = $true

@@ -77,11 +77,13 @@ try {
     [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
     Write-Log "tls 1.2 enforced for psgallery connectivity"
 
-    ##### ensure psgallery is trusted so save-module doesn't prompt for confirmation on each download #####
-    if ((Get-PSRepository -Name PSGallery).InstallationPolicy -ne 'Trusted') {
-        Write-Log "setting psgallery as trusted for this session"
-        Set-PSRepository -Name PSGallery -InstallationPolicy Trusted
+    ##### install nuget provider upfront so save-module doesn't trigger an interactive ShouldContinue prompt #####
+    $nuget = Get-PackageProvider -Name NuGet -ErrorAction SilentlyContinue
+    if (-not $nuget -or $nuget.Version -lt [version]'2.8.5.201') {
+        Write-Log "installing nuget package provider"
+        Install-PackageProvider -Name NuGet -MinimumVersion 2.8.5.201 -Force -Scope CurrentUser | Out-Null
     }
+    Write-Log "nuget provider ready"
 
     foreach ($mod in $modules) {
         Write-Log "downloading: $mod"

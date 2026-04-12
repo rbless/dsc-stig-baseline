@@ -1,4 +1,5 @@
 dsc stig baseline - windows server 2016
+written by Ryan Blessing
 =======================================
 
 about

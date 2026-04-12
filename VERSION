@@ -1,14 +1,20 @@
 {
-  "PackageVersion": "1.1.0",
-  "StigVersion": "2.6",
+  "PackageVersion": "1.2.0",
+  "StigVersion": "2.10",
   "OsTarget": "Windows Server 2016",
-  "PowerSTIGVersion": "4.22.0",
+  "PowerSTIGVersion": "4.29.0",
   "BuildDate": "",
   "BuiltBy": "",
   "Configs": {
     "WindowsServer2016STIG": "1.0.0"
   },
   "ChangeLog": [
+    {
+      "Version": "1.2.0",
+      "Date": "2026-04-11",
+      "Author": "Ryan",
+      "Notes": "Bump STIG version to 2.10 and PowerSTIG to 4.29.0 to match vendored module"
+    },
     {
       "Version": "1.1.0",
       "Date": "2026-04-09",

@@ -43,7 +43,7 @@ Configuration windowsserver2016stig {
         WindowsServer baselinestig {
             OsVersion   = '2016'
             OsRole      = $osrole
-            StigVersion = '2.6'
+            StigVersion = '2.10'
         }
 
         # ---------------------------------------------------------------

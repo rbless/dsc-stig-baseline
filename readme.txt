@@ -101,3 +101,8 @@ v1.2.1 - drifttest enhancement
   - added get-dscconfigurationstatus to the drifttest json report
   - captures last apply result, reboot pending status, duration, and lcm mode
     alongside the existing per-resource compliance data
+
+v1.2.2 - fix nuget provider install, add author to readme
+  - replaced psgallery trust check in vendormodules.ps1 with explicit nuget
+    provider install to prevent interactive prompts on fresh ws2016 machines
+  - added author attribution to readme.txt

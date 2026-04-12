@@ -200,6 +200,7 @@ $filestocopy = @(
     @{ src = 'Bootstrap.ps1';                            dst = '' }
     @{ src = 'Apply.ps1';                                dst = '' }
     @{ src = 'DriftTest.ps1';                            dst = '' }
+    @{ src = 'readme.txt';                               dst = '' }
     @{ src = 'Configurations\WindowsServer2016STIG.ps1'; dst = 'Configurations' }
 )
 
@@ -277,7 +278,7 @@ Write-Host "  version : $version" -ForegroundColor White
 Write-Host "  size    : $zipsize mb" -ForegroundColor White
 Write-Host "  next    : upload to azure blob storage" -ForegroundColor White
 Write-Host "========================================`n" -ForegroundColor Cyan
-Write-Log "========== build complete — $zipname ($zipsize mb) =========="
+Write-Log "========== build complete - $zipname ($zipsize mb) =========="
 
 }
 catch {

@@ -77,6 +77,22 @@ try {
     $driftedcount   = $result.ResourcesNotInDesiredState.Count
     $compliantcount = $result.ResourcesInDesiredState.Count
 
+    ##### pull last apply status from the lcm — captures whether the last run succeeded, if a reboot is pending, and how long it took #####
+    Write-Log "retrieving last configuration status..."
+    $lastrun = Get-DscConfigurationStatus -ErrorAction SilentlyContinue
+    $lastruninfo = if ($lastrun) {
+        [ordered]@{
+            status          = $lastrun.Status
+            startdate       = $lastrun.StartDate
+            durationmins    = [math]::Round($lastrun.Duration.TotalMinutes, 2)
+            rebootrequested = $lastrun.RebootRequested
+            type            = $lastrun.Type
+            mode            = $lastrun.Mode
+        }
+    } else {
+        $null
+    }
+
     ##### build a structured ordered hashtable for json serialization — captures node name, timestamp, overall state, and per-resource detail for both drifted and compliant resources #####
     $report = [ordered]@{
         computername           = $env:COMPUTERNAME
@@ -84,6 +100,7 @@ try {
         indesiredstate         = $indesiredstate
         compliantresourcecount = $compliantcount
         driftedresourcecount   = $driftedcount
+        lastconfigurationstatus = $lastruninfo
         driftedresources       = @(
             ##### iterate each resource that failed the test — captures resourceid, module name, and how long the test took for triage #####
             $result.ResourcesNotInDesiredState | ForEach-Object {

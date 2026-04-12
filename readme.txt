@@ -32,3 +32,9 @@ v1.2.0 - stig version fix and package corrections
     dropped the zip from ~79mb down to ~7.66mb
   - fixed build-package log string that had an em dash causing a parse error
   - first successful bootstrap and apply run on a live azure ws2016 vm
+  - readme.txt added and included in the zip package
+
+v1.2.1 - drifttest enhancement
+  - added get-dscconfigurationstatus to the drifttest json report
+  - captures last apply result, reboot pending status, duration, and lcm mode
+    alongside the existing per-resource compliance data

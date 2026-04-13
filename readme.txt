@@ -1,7 +1,8 @@
 dsc stig baseline - windows server 2016
 written by Ryan Blessing
 
-the use of Claude code was used in this project to enhance an already written script, and to fix issues that kept popping up in a quick manner
+the use of Claude code was used in this project to enhance an already written 
+script, and to fix issues that kept popping up in a quick manner
 =======================================
 
 about

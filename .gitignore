@@ -1,5 +1,7 @@
 Downloads/
 VendorOutput/
+Modules/
+Deploy-TestVM.ps1
 dist/
 Logs/
 MOF/

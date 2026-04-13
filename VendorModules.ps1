@@ -20,7 +20,7 @@
 
 [CmdletBinding()]
 param (
-    [string]$outputpath = (Join-Path $PSScriptRoot 'VendorOutput\Modules')
+    [string]$outputpath = 'C:\DSC\Modules'
 )
 
 Set-StrictMode -Version Latest

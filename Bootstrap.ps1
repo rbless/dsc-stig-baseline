@@ -160,7 +160,6 @@ function Get-StigTargets {
 ##### dsc configuration function name. os targets include a :role suffix (e.g. WS2016:ms)
 ##### which is stripped when looking up the entry — the osrole is passed as a parameter instead #####
 $configmap = [ordered]@{
-    'WS2012R2'  = @{ Script = 'Configurations\WindowsServer2012R2STIG.ps1'; Function = 'windowsserver2012r2stig' }
     'WS2016'    = @{ Script = 'Configurations\WindowsServer2016STIG.ps1';   Function = 'windowsserver2016stig'   }
     'WS2019'    = @{ Script = 'Configurations\WindowsServer2019STIG.ps1';   Function = 'windowsserver2019stig'   }
     'WS2022'    = @{ Script = 'Configurations\WindowsServer2022STIG.ps1';   Function = 'windowsserver2022stig'   }

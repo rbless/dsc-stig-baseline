@@ -4,31 +4,29 @@
     bootstraps the dsc environment on a freshly provisioned vm.
 
 .DESCRIPTION
-    performs three steps in sequence:
+    performs four steps in sequence:
       1. installs vendored powershell modules from C:\DSC\Modules (no internet required)
       2. configures the local configuration manager (lcm)
-      3. compiles the dsc configuration to a mof file
+      3. detects installed products (os version, sql server, oracle) and compiles
+         one mof per detected target into C:\DSC\MOF\<target>\
+      4. archives any previous install before overwriting
 
     run this script first after the zip is extracted.
     then run Apply.ps1 to enforce the configuration.
 
+    add new stig targets by dropping a config script into Configurations\
+    and adding an entry to the $configmap table in this script.
+
 .PARAMETER dscroot
     root path where the dsc zip was extracted. default: C:\DSC
 
-.PARAMETER osrole
-    ms = member server (default) | dc = domain controller
-
 .EXAMPLE
     .\Bootstrap.ps1
-    .\Bootstrap.ps1 -OsRole dc
 #>
 
 [CmdletBinding()]
 param (
-    [string]$dscroot = 'C:\DSC',
-
-    [ValidateSet('ms', 'dc')]
-    [string]$osrole = 'ms'
+    [string]$dscroot = 'C:\DSC'
 )
 
 Set-StrictMode -Version Latest
@@ -58,12 +56,133 @@ function Write-Log {
 }
 
 # ---------------------------------------------------------------------------
+# target detection
+# ---------------------------------------------------------------------------
+##### get-stigtargets: inspects the local machine and returns a list of target keys
+##### representing what stig configs should be compiled. checks os version, sql server
+##### registry keys, and oracle registry keys. only returns targets that have a known
+##### mapping in the configmap — unknown products are logged as warnings and skipped #####
+function Get-StigTargets {
+    $detected = [System.Collections.Generic.List[string]]::new()
+
+    # os version — always present. use win32_operatingsystem caption to determine which
+    # windows server stig applies. domainrole 4/5 = domain controller, 2/3 = member server
+    $osinfo   = Get-WmiObject -Class Win32_OperatingSystem -ErrorAction SilentlyContinue
+    $sysinfo  = Get-WmiObject -Class Win32_ComputerSystem  -ErrorAction SilentlyContinue
+    $osrole   = if ($sysinfo.DomainRole -ge 4) { 'dc' } else { 'ms' }
+
+    ##### match caption against known windows server release strings — update the list as new stig benchmarks become available #####
+    switch -Wildcard ($osinfo.Caption) {
+        '*2012*' { $detected.Add("WS2012R2:$osrole") }
+        '*2016*' { $detected.Add("WS2016:$osrole")   }
+        '*2019*' { $detected.Add("WS2019:$osrole")   }
+        '*2022*' { $detected.Add("WS2022:$osrole")   }
+        default  { Write-Log "unrecognized os: $($osinfo.Caption) — no os stig will be applied" 'warn' }
+    }
+
+    # sql server — check for installed instances via the sql instance names registry key.
+    # then enumerate version-numbered subkeys under the sql root to identify installed versions.
+    # internal version numbers: 110=2012, 120=2014, 130=2016, 140=2017, 150=2019
+    $sqlinstanceskey = 'HKLM:\SOFTWARE\Microsoft\Microsoft SQL Server\Instance Names\SQL'
+    if (Test-Path $sqlinstanceskey) {
+        $sqlrootkey = 'HKLM:\SOFTWARE\Microsoft\Microsoft SQL Server'
+        ##### iterate numeric subkeys (e.g. 120, 130) under the sql root — each represents an installed version family #####
+        Get-ChildItem $sqlrootkey -ErrorAction SilentlyContinue |
+            Where-Object { $_.PSChildName -match '^\d{2,3}$' } |
+            ForEach-Object {
+                switch ($_.PSChildName) {
+                    '110' { $detected.Add('SQL2012') }
+                    '120' { $detected.Add('SQL2014') }
+                    '130' { $detected.Add('SQL2016') }
+                    '140' { $detected.Add('SQL2017') }
+                    '150' { $detected.Add('SQL2019') }
+                }
+            }
+    }
+
+    # oracle — check HKLM:\SOFTWARE\ORACLE for KEY_ prefixed subkeys representing oracle homes.
+    # each home has an ORACLE_HOME_VERSION property — match major version to stig target name
+    $oraclekey = 'HKLM:\SOFTWARE\ORACLE'
+    if (Test-Path $oraclekey) {
+        ##### iterate KEY_ subkeys — each one is an oracle home. extract major version from ORACLE_HOME_VERSION property #####
+        Get-ChildItem $oraclekey -ErrorAction SilentlyContinue |
+            Where-Object { $_.PSChildName -match '^KEY_' } |
+            ForEach-Object {
+                $ver = (Get-ItemProperty $_.PSPath -ErrorAction SilentlyContinue).ORACLE_HOME_VERSION
+                ##### add oracle target only once per major version even if multiple homes exist #####
+                if ($ver -match '^12' -and 'Oracle12c' -notin $detected) { $detected.Add('Oracle12c') }
+                if ($ver -match '^19' -and 'Oracle19c' -notin $detected) { $detected.Add('Oracle19c') }
+            }
+    }
+
+    # iis — check for the W3SVC service which is present whenever the web server role is installed
+    $iissvc = Get-Service -Name 'W3SVC' -ErrorAction SilentlyContinue
+    if ($iissvc) {
+        ##### iis version is tied to the os — derive from os caption rather than a separate iis version check #####
+        switch -Wildcard ($osinfo.Caption) {
+            '*2012*' { $detected.Add('IIS8.5') }
+            '*2016*' { $detected.Add('IIS10.0') }
+            '*2019*' { $detected.Add('IIS10.0') }
+            '*2022*' { $detected.Add('IIS10.0') }
+        }
+    }
+
+    # apache — check for apache service or registry entry. apache on windows typically
+    # registers a service named Apache* and may have a registry key under apache software foundation
+    $apachesvc = Get-Service -Name 'Apache*' -ErrorAction SilentlyContinue | Select-Object -First 1
+    $apachekey = 'HKLM:\SOFTWARE\Apache Software Foundation'
+    if ($apachesvc -or (Test-Path $apachekey)) {
+        ##### apache httpd 2.4 is the current stig-covered version — add detection for other versions if needed #####
+        $detected.Add('Apache2.4')
+    }
+
+    # adobe acrobat / reader — check both 32-bit and 64-bit registry hives.
+    # acrobat pro registers under Adobe Acrobat, reader under Acrobat Reader
+    $adobepaths = @(
+        'HKLM:\SOFTWARE\Adobe\Acrobat Reader'
+        'HKLM:\SOFTWARE\Adobe\Adobe Acrobat'
+        'HKLM:\SOFTWARE\WOW6432Node\Adobe\Acrobat Reader'
+        'HKLM:\SOFTWARE\WOW6432Node\Adobe\Adobe Acrobat'
+    )
+    ##### check each adobe registry path — add target once on first match regardless of how many adobe products are found #####
+    $adobefound = $adobepaths | Where-Object { Test-Path $_ } | Select-Object -First 1
+    if ($adobefound) {
+        $detected.Add('AdobeAcrobat')
+    }
+
+    return $detected
+}
+
+# ---------------------------------------------------------------------------
+# config map — add new stig targets here
+# ---------------------------------------------------------------------------
+##### configmap: maps each target key returned by get-stigtargets to the config script and
+##### dsc configuration function name. os targets include a :role suffix (e.g. WS2016:ms)
+##### which is stripped when looking up the entry — the osrole is passed as a parameter instead #####
+$configmap = [ordered]@{
+    'WS2012R2'  = @{ Script = 'Configurations\WindowsServer2012R2STIG.ps1'; Function = 'windowsserver2012r2stig' }
+    'WS2016'    = @{ Script = 'Configurations\WindowsServer2016STIG.ps1';   Function = 'windowsserver2016stig'   }
+    'WS2019'    = @{ Script = 'Configurations\WindowsServer2019STIG.ps1';   Function = 'windowsserver2019stig'   }
+    'WS2022'    = @{ Script = 'Configurations\WindowsServer2022STIG.ps1';   Function = 'windowsserver2022stig'   }
+    'SQL2012'   = @{ Script = 'Configurations\SqlServer2012STIG.ps1';       Function = 'sqlserver2012stig'       }
+    'SQL2014'   = @{ Script = 'Configurations\SqlServer2014STIG.ps1';       Function = 'sqlserver2014stig'       }
+    'SQL2016'   = @{ Script = 'Configurations\SqlServer2016STIG.ps1';       Function = 'sqlserver2016stig'       }
+    'SQL2017'   = @{ Script = 'Configurations\SqlServer2017STIG.ps1';       Function = 'sqlserver2017stig'       }
+    'SQL2019'   = @{ Script = 'Configurations\SqlServer2019STIG.ps1';       Function = 'sqlserver2019stig'       }
+    'Oracle12c'    = @{ Script = 'Configurations\Oracle12cSTIG.ps1';          Function = 'oracle12cstig'          }
+    'Oracle19c'    = @{ Script = 'Configurations\Oracle19cSTIG.ps1';          Function = 'oracle19cstig'          }
+    'IIS8.5'       = @{ Script = 'Configurations\IIS85STIG.ps1';              Function = 'iis85stig'              }
+    'IIS10.0'      = @{ Script = 'Configurations\IIS10STIG.ps1';              Function = 'iis10stig'              }
+    'Apache2.4'    = @{ Script = 'Configurations\Apache24STIG.ps1';           Function = 'apache24stig'           }
+    'AdobeAcrobat' = @{ Script = 'Configurations\AdobeAcrobatSTIG.ps1';       Function = 'adobeacrobatstig'       }
+}
+
+# ---------------------------------------------------------------------------
 # main
 # ---------------------------------------------------------------------------
 try {
     Write-Log "========== bootstrap started on $env:COMPUTERNAME =========="
     Write-Log "dscroot : $dscroot"
-    Write-Log "osrole  : $osrole"
     Write-Log "log     : $logfile"
 
     # -----------------------------------------------------------------------
@@ -135,13 +254,14 @@ try {
     # -----------------------------------------------------------------------
     Write-Log "--- step 2: configuring local configuration manager ---"
 
-    ##### define the lcm meta-configuration inline — push mode means configs are applied manually rather than pulled from a server. rebootnodeifneeded allows dsc to reboot mid-apply for resources that require it #####
+    ##### define the lcm meta-configuration inline — push mode means configs are applied manually rather than pulled from a server.
+    ##### applyandautocorrect enforces desired state every 15 minutes rather than just monitoring for drift #####
     [DSCLocalConfigurationManager()]
     Configuration lcmsettings {
         Node localhost {
             Settings {
                 RefreshMode                    = 'push'
-                ConfigurationMode              = 'applyandmonitor'
+                ConfigurationMode              = 'applyandautocorrect'
                 RebootNodeIfNeeded             = $true
                 ActionAfterReboot              = 'continueconfiguration'
                 ConfigurationModeFrequencyMins = 15
@@ -159,37 +279,67 @@ try {
     Write-Log "lcm configured (mode: applyandmonitor, push)"
 
     # -----------------------------------------------------------------------
-    # step 3: compile mof
+    # step 3: detect installed products and compile mofs
     # -----------------------------------------------------------------------
-    Write-Log "--- step 3: compiling dsc configuration ---"
-
-    $configscript = Join-Path $dscroot 'Configurations\WindowsServer2016STIG.ps1'
-
-    ##### check that the configuration ps1 file exists inside the extracted package — if missing the zip was incomplete, abort #####
-    if (-not (Test-Path $configscript)) {
-        throw "configuration script not found: $configscript"
-    }
-
-    ##### dot-source the configuration script to load the Configuration block into the current powershell scope so it can be called as a function #####
-    . $configscript
+    Write-Log "--- step 3: detecting installed products ---"
 
     $mofpath = Join-Path $dscroot 'MOF'
     $null    = New-Item -ItemType Directory -Path $mofpath -Force
 
-    ##### call the configuration function loaded above — compiles the stig settings into a mof file targeting localhost and writes it to the mof directory #####
-    windowsserver2016stig `
-        -NodeName   'localhost' `
-        -OsRole     $osrole `
-        -OutputPath $mofpath
+    $targets = Get-StigTargets
+    Write-Log "detected targets: $($targets -join ', ')"
 
-    ##### verify the mof file was actually produced in the output directory — if empty, compilation silently failed, throw and abort #####
-    $moffile = Get-ChildItem -Path $mofpath -Filter '*.mof' | Select-Object -First 1
-    if (-not $moffile) {
-        throw "mof compilation produced no output in $mofpath"
+    $compiled = 0
+
+    ##### iterate each detected target — strip the :role suffix for map lookup, pass role as parameter for os configs #####
+    foreach ($target in $targets) {
+        $targetkey = $target -replace ':.*$', ''
+        $osrole    = if ($target -match ':(.+)$') { $matches[1] } else { $null }
+
+        if (-not $configmap.ContainsKey($targetkey)) {
+            Write-Log "no config mapped for detected target: $targetkey — skipping" 'warn'
+            continue
+        }
+
+        $cfg        = $configmap[$targetkey]
+        $scriptpath = Join-Path $dscroot $cfg.Script
+
+        ##### skip targets where the config script doesn't exist — this is expected when a product is installed but no stig config has been authored yet #####
+        if (-not (Test-Path $scriptpath)) {
+            Write-Log "config script not found for $targetkey — skipping: $scriptpath" 'warn'
+            continue
+        }
+
+        Write-Log "compiling mof for: $targetkey"
+
+        ##### dot-source the configuration script to load its Configuration block into scope, then call it to produce the mof #####
+        . $scriptpath
+
+        $mofsubpath = Join-Path $mofpath $targetkey
+        $null = New-Item -ItemType Directory -Path $mofsubpath -Force
+
+        ##### os configs accept -osrole to switch between member server and dc rule sets. non-os configs (sql, oracle) do not take that parameter #####
+        if ($targetkey -match '^WS' -and $osrole) {
+            & $cfg.Function -NodeName 'localhost' -OsRole $osrole -OutputPath $mofsubpath
+        } else {
+            & $cfg.Function -NodeName 'localhost' -OutputPath $mofsubpath
+        }
+
+        $moffile = Get-ChildItem -Path $mofsubpath -Filter '*.mof' | Select-Object -First 1
+        if (-not $moffile) {
+            throw "mof compilation produced no output for $targetkey in $mofsubpath"
+        }
+
+        Write-Log "mof compiled: $($moffile.FullName)"
+        $compiled++
     }
 
-    Write-Log "mof compiled: $($moffile.FullName)"
-    Write-Log "========== bootstrap complete. run Apply.ps1 to enforce configuration. =========="
+    ##### abort if nothing compiled — means detection found products but no matching config scripts exist yet #####
+    if ($compiled -eq 0) {
+        throw "no mofs compiled — no matching config scripts found for detected targets: $($targets -join ', ')"
+    }
+
+    Write-Log "========== bootstrap complete. $compiled mof(s) compiled. run Apply.ps1 to enforce. =========="
 }
 catch {
     Write-Log "fatal error: $_" 'error'

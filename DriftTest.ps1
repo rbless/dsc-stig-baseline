@@ -1,14 +1,15 @@
 #Requires -RunAsAdministrator
 <#
 .SYNOPSIS
-    tests this node against the dsc stig configuration and reports any drift.
+    tests this node against all compiled dsc stig configurations and reports drift.
 
 .DESCRIPTION
-    runs Test-DscConfiguration and produces:
-      - console output with pass/fail summary
-      - a timestamped json report in C:\DSC\Logs\
+    loops over all target subfolders under C:\DSC\MOF\ and runs
+    Test-DscConfiguration against each one. produces:
+      - console output with per-target pass/fail summary
+      - a timestamped json report in C:\DSC\Logs\ aggregating all targets
 
-    returns exit code 0 if compliant, 1 if drift detected.
+    returns exit code 0 if all targets compliant, 1 if any drift detected.
     suitable for use as a scheduled task or pipeline health check.
 
 .PARAMETER dscroot
@@ -64,21 +65,23 @@ try {
 
     $mofpath = Join-Path $dscroot 'MOF'
 
-    ##### check if the mof directory exists — if missing, bootstrap has not run yet, throw and abort before attempting a test against nothing #####
+    ##### check if the mof directory exists — if missing, bootstrap has not run yet, abort #####
     if (-not (Test-Path $mofpath)) {
         throw "mof directory not found at '$mofpath'. run Bootstrap.ps1 first."
     }
 
-    ##### run Test-DscConfiguration against the compiled mof with -detailed to get per-resource pass/fail results rather than a single boolean #####
-    Write-Log "running Test-DscConfiguration..."
-    $result = Test-DscConfiguration -Path $mofpath -Detailed
+    ##### find all subfolders under MOF\ that contain at least one .mof file — each is one compiled stig target #####
+    $mofdirs = Get-ChildItem -Path $mofpath -Directory | Where-Object {
+        Get-ChildItem -Path $_.FullName -Filter '*.mof' -ErrorAction SilentlyContinue
+    }
 
-    $indesiredstate = $result.InDesiredState
-    $driftedcount   = $result.ResourcesNotInDesiredState.Count
-    $compliantcount = $result.ResourcesInDesiredState.Count
+    if (-not $mofdirs) {
+        throw "no .mof files found in '$mofpath'. run Bootstrap.ps1 to compile configurations."
+    }
 
-    ##### pull last apply status from the lcm — captures whether the last run succeeded, if a reboot is pending, and how long it took #####
-    Write-Log "retrieving last configuration status..."
+    Write-Log "targets to test: $($mofdirs.Name -join ', ')"
+
+    ##### pull last apply status from the lcm once — not per-target since the lcm only tracks one active config at a time #####
     $lastrun = Get-DscConfigurationStatus -ErrorAction SilentlyContinue
     $lastruninfo = if ($lastrun) {
         [ordered]@{
@@ -89,65 +92,94 @@ try {
             type            = $lastrun.Type
             mode            = $lastrun.Mode
         }
-    } else {
-        $null
-    }
+    } else { $null }
 
-    ##### build a structured ordered hashtable for json serialization — captures node name, timestamp, overall state, and per-resource detail for both drifted and compliant resources #####
-    $report = [ordered]@{
-        computername           = $env:COMPUTERNAME
-        timestamp              = (Get-Date -Format 'o')
-        indesiredstate         = $indesiredstate
-        compliantresourcecount = $compliantcount
-        driftedresourcecount   = $driftedcount
-        lastconfigurationstatus = $lastruninfo
-        driftedresources       = @(
-            ##### iterate each resource that failed the test — captures resourceid, module name, and how long the test took for triage #####
+    $targetresults   = [System.Collections.Generic.List[object]]::new()
+    $totaldrifted    = 0
+    $totalcompliant  = 0
+    $anydrift        = $false
+
+    ##### iterate each mof subfolder and run a detailed compliance test — collect per-resource results for the json report #####
+    foreach ($mofdir in $mofdirs) {
+        $target = $mofdir.Name
+        Write-Log "--- testing: $target ---"
+
+        $result = Test-DscConfiguration -Path $mofdir.FullName -Detailed
+
+        $indesiredstate = $result.InDesiredState
+        $driftedcount   = $result.ResourcesNotInDesiredState.Count
+        $compliantcount = $result.ResourcesInDesiredState.Count
+
+        $totalcompliant += $compliantcount
+        $totaldrifted   += $driftedcount
+
+        if (-not $indesiredstate) {
+            $anydrift = $true
+            Write-Log "$target — drift detected: $driftedcount resource(s) out of desired state" 'warn'
+
+            ##### log each drifted resource id individually so the log shows exactly which controls slipped #####
             $result.ResourcesNotInDesiredState | ForEach-Object {
-                [ordered]@{
-                    resourceid   = $_.ResourceId
-                    modulename   = $_.ModuleName
-                    durationsecs = [math]::Round($_.Duration.TotalSeconds, 2)
-                }
+                Write-Log "  [drift] $($_.ResourceId)" 'warn'
             }
-        )
-        compliantresources     = @(
-            ##### iterate each resource that passed the test — same shape as driftedresources for consistent report structure #####
-            $result.ResourcesInDesiredState | ForEach-Object {
-                [ordered]@{
-                    resourceid   = $_.ResourceId
-                    modulename   = $_.ModuleName
-                    durationsecs = [math]::Round($_.Duration.TotalSeconds, 2)
+        } else {
+            Write-Log "$target — compliant: all $compliantcount resources in desired state"
+        }
+
+        ##### build per-target result block for the json report #####
+        $targetresults.Add([ordered]@{
+            target              = $target
+            indesiredstate      = $indesiredstate
+            compliantresources  = $compliantcount
+            driftedresources    = $driftedcount
+            drifted             = @(
+                $result.ResourcesNotInDesiredState | ForEach-Object {
+                    [ordered]@{
+                        resourceid   = $_.ResourceId
+                        modulename   = $_.ModuleName
+                        durationsecs = [math]::Round($_.Duration.TotalSeconds, 2)
+                    }
                 }
-            }
-        )
+            )
+            compliant           = @(
+                $result.ResourcesInDesiredState | ForEach-Object {
+                    [ordered]@{
+                        resourceid   = $_.ResourceId
+                        modulename   = $_.ModuleName
+                        durationsecs = [math]::Round($_.Duration.TotalSeconds, 2)
+                    }
+                }
+            )
+        })
     }
 
-    ##### serialize the report hashtable to json and write it to disk — used by pipelines and audit processes to consume results without parsing log text #####
-    $report | ConvertTo-Json -Depth 6 | Out-File -FilePath $reportfile -Encoding UTF8
+    ##### build the top-level report aggregating all target results #####
+    $report = [ordered]@{
+        computername            = $env:COMPUTERNAME
+        timestamp               = (Get-Date -Format 'o')
+        overallindesiredstate   = (-not $anydrift)
+        totalcompliantresources = $totalcompliant
+        totaldriftedresources   = $totaldrifted
+        lastconfigurationstatus = $lastruninfo
+        targets                 = $targetresults
+    }
+
+    ##### serialize the aggregated report to json and write to disk #####
+    $report | ConvertTo-Json -Depth 8 | Out-File -FilePath $reportfile -Encoding UTF8
     Write-Log "report written: $reportfile"
 
-    ##### branch on overall compliance result — exit 0 if clean, otherwise log each drifted resource and optionally invoke Apply.ps1 to remediate #####
-    if ($indesiredstate) {
-        Write-Log "result: compliant - all $compliantcount resources in desired state"
+    ##### branch on overall compliance — auto-remediate if enabled, otherwise exit 1 to signal drift to the pipeline #####
+    if (-not $anydrift) {
+        Write-Log "result: compliant — all targets in desired state ($totalcompliant resources)"
         Write-Log "========== drift test complete =========="
         exit 0
-    }
-    else {
-        Write-Log "result: drift detected - $driftedcount resource(s) out of desired state" 'warn'
+    } else {
+        Write-Log "result: drift detected — $totaldrifted resource(s) out of desired state across all targets" 'warn'
 
-        ##### iterate each drifted resource and log its id individually so the log shows exactly which controls slipped without requiring json parsing #####
-        $result.ResourcesNotInDesiredState | ForEach-Object {
-            Write-Log "  [drift] $($_.ResourceId)" 'warn'
-        }
-
-        ##### check autoremediate flag — if true, call Apply.ps1 to push the config back into desired state. if false, log that manual remediation is needed and exit 1 #####
         if ($autoremediate) {
-            Write-Log "autoremediate is enabled - invoking Apply.ps1" 'warn'
+            Write-Log "autoremediate is enabled — invoking Apply.ps1" 'warn'
             $applyscript = Join-Path $dscroot 'Apply.ps1'
             & $applyscript -dscroot $dscroot
-        }
-        else {
+        } else {
             Write-Log "autoremediate is disabled. run Apply.ps1 manually to remediate." 'warn'
         }
 

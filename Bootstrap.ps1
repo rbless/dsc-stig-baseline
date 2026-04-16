@@ -295,7 +295,7 @@ try {
         $targetkey = $target -replace ':.*$', ''
         $osrole    = if ($target -match ':(.+)$') { $matches[1] } else { $null }
 
-        if (-not $configmap.ContainsKey($targetkey)) {
+        if (-not $configmap.Contains($targetkey)) {
             Write-Log "no config mapped for detected target: $targetkey — skipping" 'warn'
             continue
         }

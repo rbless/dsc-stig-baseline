@@ -338,7 +338,15 @@ try {
         throw "no mofs compiled — no matching config scripts found for detected targets: $($targets -join ', ')"
     }
 
-    Write-Log "========== bootstrap complete. $compiled mof(s) compiled. run Apply.ps1 to enforce. =========="
+    Write-Log "========== bootstrap complete. $compiled mof(s) compiled. invoking Apply.ps1 =========="
+
+    ##### automatically invoke apply.ps1 after successful bootstrap — no manual step required #####
+    $applyscript = Join-Path $dscroot 'Apply.ps1'
+    if (Test-Path $applyscript) {
+        & $applyscript -dscroot $dscroot
+    } else {
+        Write-Log "Apply.ps1 not found at $applyscript — run it manually to enforce configuration" 'warn'
+    }
 }
 catch {
     Write-Log "fatal error: $_" 'error'

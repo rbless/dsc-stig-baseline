@@ -18,22 +18,27 @@
 
 Configuration sqlserver2022stig {
     param (
-        [string]$nodename = 'localhost'
+        [string]$nodename       = 'localhost',
+        [string]$serverinstance = 'localhost'
     )
 
     Import-DscResource -ModuleName PowerSTIG
+    Import-DscResource -ModuleName PSDscResources
 
     Node $nodename {
 
         # ---------------------------------------------------------------
-        # disa stig — sql server 2022 instance
+        # disa stig -- sql server 2022 instance
+        # note: Bootstrap.ps1 pre-creates C:\Audits before calling Apply so
+        # powerstig can write the STIG_AUDIT object there without errors.
         # ---------------------------------------------------------------
 
         ##### applies the disa stig for sql server 2022 at the instance level via the powerstig SqlServer resource #####
         SqlServer baselineinstancestig {
-            SqlVersion  = '2022'
-            SqlRole     = 'Instance'
-            StigVersion = '1.3'
+            SqlVersion     = '2022'
+            SqlRole        = 'Instance'
+            StigVersion    = '1.3'
+            ServerInstance = $serverinstance
         }
     }
 }

@@ -62,12 +62,12 @@ try {
 
     $mofpath = Join-Path $dscroot 'MOF'
 
-    ##### check if the mof directory exists — if missing, bootstrap has not run yet, abort #####
+    ##### check if the mof directory exists -- if missing, bootstrap has not run yet, abort #####
     if (-not (Test-Path $mofpath)) {
         throw "mof directory not found at '$mofpath'. run Bootstrap.ps1 first."
     }
 
-    ##### find all subfolders under MOF\ that contain at least one .mof file — each subfolder is one compiled stig target #####
+    ##### find all subfolders under MOF\ that contain at least one .mof file -- each subfolder is one compiled stig target #####
     $mofdirs = Get-ChildItem -Path $mofpath -Directory | Where-Object {
         Get-ChildItem -Path $_.FullName -Filter '*.mof' -ErrorAction SilentlyContinue
     }
@@ -81,7 +81,7 @@ try {
     $applied  = 0
     $drifted  = 0
 
-    ##### iterate each mof subfolder and apply the configuration — wait for completion before moving to the next target #####
+    ##### iterate each mof subfolder and apply the configuration -- wait for completion before moving to the next target #####
     foreach ($mofdir in $mofdirs) {
         $target = $mofdir.Name
         Write-Log "--- applying: $target ---"
@@ -95,12 +95,12 @@ try {
 
         Start-DscConfiguration @params
 
-        ##### post-apply compliance check — warns if not fully in desired state, which may indicate a pending reboot #####
+        ##### post-apply compliance check -- warns if not fully in desired state, which may indicate a pending reboot #####
         $testresult = Test-DscConfiguration -Path $mofdir.FullName
         if ($testresult) {
-            Write-Log "$target — in desired state"
+            Write-Log "$target -- in desired state"
         } else {
-            Write-Log "$target — not fully in desired state. a reboot may be required." 'warn'
+            Write-Log "$target -- not fully in desired state. a reboot may be required." 'warn'
             $drifted++
         }
 
@@ -108,14 +108,14 @@ try {
     }
 
     if ($drifted -gt 0) {
-        Write-Log "========== apply complete — $applied target(s) applied, $drifted may require reboot ==========" 'warn'
+        Write-Log "========== apply complete -- $applied target(s) applied, $drifted may require reboot ==========" 'warn'
         Write-Log "if RebootNodeIfNeeded is true in lcm, the system will reboot and continue automatically." 'warn'
     } else {
-        Write-Log "========== apply complete — all $applied target(s) in desired state =========="
+        Write-Log "========== apply complete -- all $applied target(s) in desired state =========="
     }
 }
 catch {
-    Write-Log "fatal error: $_" 'error'
-    Write-Log "stack trace: $($_.ScriptStackTrace)" 'error'
+    Write-Log "fatal error: $($_ -replace '[\r\n]+',' ')" 'error'
+    Write-Log "stack trace: $($_.ScriptStackTrace -replace '[\r\n]+',' | ')" 'error'
     exit 1
 }

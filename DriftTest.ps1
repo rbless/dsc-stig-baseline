@@ -65,12 +65,12 @@ try {
 
     $mofpath = Join-Path $dscroot 'MOF'
 
-    ##### check if the mof directory exists — if missing, bootstrap has not run yet, abort #####
+    ##### check if the mof directory exists -- if missing, bootstrap has not run yet, abort #####
     if (-not (Test-Path $mofpath)) {
         throw "mof directory not found at '$mofpath'. run Bootstrap.ps1 first."
     }
 
-    ##### find all subfolders under MOF\ that contain at least one .mof file — each is one compiled stig target #####
+    ##### find all subfolders under MOF\ that contain at least one .mof file -- each is one compiled stig target #####
     $mofdirs = Get-ChildItem -Path $mofpath -Directory | Where-Object {
         Get-ChildItem -Path $_.FullName -Filter '*.mof' -ErrorAction SilentlyContinue
     }
@@ -81,13 +81,13 @@ try {
 
     Write-Log "targets to test: $($mofdirs.Name -join ', ')"
 
-    ##### pull last apply status from the lcm once — not per-target since the lcm only tracks one active config at a time #####
+    ##### pull last apply status from the lcm once -- not per-target since the lcm only tracks one active config at a time #####
     $lastrun = Get-DscConfigurationStatus -ErrorAction SilentlyContinue
     $lastruninfo = if ($lastrun) {
         [ordered]@{
             status          = $lastrun.Status
             startdate       = $lastrun.StartDate
-            durationmins    = [math]::Round($lastrun.Duration.TotalMinutes, 2)
+            durationmins    = if ($lastrun | Get-Member -Name Duration -ErrorAction SilentlyContinue) { [math]::Round($lastrun.Duration.TotalMinutes, 2) } else { $null }
             rebootrequested = $lastrun.RebootRequested
             type            = $lastrun.Type
             mode            = $lastrun.Mode
@@ -99,30 +99,43 @@ try {
     $totalcompliant  = 0
     $anydrift        = $false
 
-    ##### iterate each mof subfolder and run a detailed compliance test — collect per-resource results for the json report #####
+    ##### iterate each mof subfolder and run a compliance test.
+    ##### note: on ps 5.1 (ws2016/2019), -Path and -Detailed cannot be used together.
+    ##### we get overall pass/fail from -Path, then re-run -Detailed (no -Path) for per-resource detail
+    ##### against the currently active lcm configuration for that target. #####
     foreach ($mofdir in $mofdirs) {
         $target = $mofdir.Name
         Write-Log "--- testing: $target ---"
 
-        $result = Test-DscConfiguration -Path $mofdir.FullName -Detailed
+        ##### get overall pass/fail against the mof on disk -- some controls throw on standalone vms (e.g. domain SID checks), treat as non-compliant if test itself errors #####
+        $indesiredstate = $false
+        try { $indesiredstate = Test-DscConfiguration -Path $mofdir.FullName } catch { Write-Log "test error for $target (non-fatal, marking non-compliant): $_" 'warn' }
 
-        $indesiredstate = $result.InDesiredState
-        $driftedcount   = $result.ResourcesNotInDesiredState.Count
-        $compliantcount = $result.ResourcesInDesiredState.Count
+        ##### attempt detailed per-resource results -- only works against current lcm config, best-effort #####
+        ##### some controls (e.g. domain SID user rights assignments) throw terminating errors on standalone vms -- catch and continue #####
+        $detailed = $null
+        try { $detailed = Test-DscConfiguration -Detailed -ErrorAction SilentlyContinue } catch { Write-Log "detailed test warning (non-fatal): $_" 'warn' }
+        $driftedresources  = @()
+        $compliantresources = @()
+        $driftedcount   = 0
+        $compliantcount = 0
+
+        if ($detailed -and ($detailed | Get-Member -Name ResourcesNotInDesiredState -ErrorAction SilentlyContinue)) {
+            $driftedresources   = @($detailed.ResourcesNotInDesiredState  | Where-Object { $_ -ne $null })
+            $compliantresources = @($detailed.ResourcesInDesiredState     | Where-Object { $_ -ne $null })
+            $driftedcount       = $driftedresources.Count
+            $compliantcount     = $compliantresources.Count
+        }
 
         $totalcompliant += $compliantcount
         $totaldrifted   += $driftedcount
 
         if (-not $indesiredstate) {
             $anydrift = $true
-            Write-Log "$target — drift detected: $driftedcount resource(s) out of desired state" 'warn'
-
-            ##### log each drifted resource id individually so the log shows exactly which controls slipped #####
-            $result.ResourcesNotInDesiredState | ForEach-Object {
-                Write-Log "  [drift] $($_.ResourceId)" 'warn'
-            }
+            Write-Log "$target -- drift detected" 'warn'
+            $driftedresources | ForEach-Object { Write-Log "  [drift] $($_.ResourceId)" 'warn' }
         } else {
-            Write-Log "$target — compliant: all $compliantcount resources in desired state"
+            Write-Log "$target -- compliant"
         }
 
         ##### build per-target result block for the json report #####
@@ -132,20 +145,20 @@ try {
             compliantresources  = $compliantcount
             driftedresources    = $driftedcount
             drifted             = @(
-                $result.ResourcesNotInDesiredState | ForEach-Object {
+                $driftedresources | ForEach-Object {
                     [ordered]@{
                         resourceid   = $_.ResourceId
                         modulename   = $_.ModuleName
-                        durationsecs = [math]::Round($_.Duration.TotalSeconds, 2)
+                        durationsecs = if ($_ | Get-Member -Name DurationInSeconds -ErrorAction SilentlyContinue) { [math]::Round($_.DurationInSeconds, 2) } else { $null }
                     }
                 }
             )
             compliant           = @(
-                $result.ResourcesInDesiredState | ForEach-Object {
+                $compliantresources | ForEach-Object {
                     [ordered]@{
                         resourceid   = $_.ResourceId
                         modulename   = $_.ModuleName
-                        durationsecs = [math]::Round($_.Duration.TotalSeconds, 2)
+                        durationsecs = if ($_ | Get-Member -Name DurationInSeconds -ErrorAction SilentlyContinue) { [math]::Round($_.DurationInSeconds, 2) } else { $null }
                     }
                 }
             )
@@ -167,16 +180,16 @@ try {
     $report | ConvertTo-Json -Depth 8 | Out-File -FilePath $reportfile -Encoding UTF8
     Write-Log "report written: $reportfile"
 
-    ##### branch on overall compliance — auto-remediate if enabled, otherwise exit 1 to signal drift to the pipeline #####
+    ##### branch on overall compliance -- auto-remediate if enabled, otherwise exit 1 to signal drift to the pipeline #####
     if (-not $anydrift) {
-        Write-Log "result: compliant — all targets in desired state ($totalcompliant resources)"
+        Write-Log "result: compliant -- all targets in desired state ($totalcompliant resources)"
         Write-Log "========== drift test complete =========="
         exit 0
     } else {
-        Write-Log "result: drift detected — $totaldrifted resource(s) out of desired state across all targets" 'warn'
+        Write-Log "result: drift detected -- $totaldrifted resource(s) out of desired state across all targets" 'warn'
 
         if ($autoremediate) {
-            Write-Log "autoremediate is enabled — invoking Apply.ps1" 'warn'
+            Write-Log "autoremediate is enabled -- invoking Apply.ps1" 'warn'
             $applyscript = Join-Path $dscroot 'Apply.ps1'
             & $applyscript -dscroot $dscroot
         } else {

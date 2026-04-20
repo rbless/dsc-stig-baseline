@@ -171,26 +171,27 @@ v1.4.0
 
 v1.5.0
     - reboot persistence, sql audit cleanup, drifttest hardening
-    - big one we missed: lcm push mode doesn't guarantee re-enforcement after a hard
+    - big one i missed: lcm push mode doesn't guarantee re-enforcement after a hard
       reboot if the pending config cache gets wiped. bootstrap now registers a windows
       scheduled task (DSC-ApplyOnBoot, runs as SYSTEM) that fires Apply.ps1 at every
       startup. belt and suspenders -- lcm still autocorrects every 15 min while running,
-      scheduled task covers you on reboot.
+      scheduled task covers you on reboot. ephemeral servers will run Apply.ps1 on creation,
+      covering both ends
     - stripped the custom createstigaudit script resource out of all sql config scripts.
-      we were pre-creating STIG_AUDIT at C:\STIG_Audit but powerstig's own SetQuery
+      i had been pre-creating STIG_AUDIT at C:\STIG_Audit but powerstig's own SetQuery
       drops and recreates it at C:\Audits anyway, so our prereq resource was just
       fighting powerstig and losing. bootstrap now creates C:\Audits before calling
-      Apply so powerstig has the directory it expects. much cleaner.
+      Apply so powerstig has the directory it expects. 
     - ServerInstance default was 'MSSQLSERVER' on some scripts, '.' on others. fixed
       to 'localhost' across all sql configs. 'localhost' makes powerstig produce
       ServerName=localhost, InstanceName=MSSQLSERVER in the mof which is correct for
       the default instance. named pipes not required, tcp on localhost works fine.
-    - Write-Log catch blocks in bootstrap.ps1 and apply.ps1 now strip newlines from
+    - Write-Log catch blocks in bootstrap.ps1 and apply.ps1 now strip new lines from
       the error message before passing to Write-Log. multi-line error strings were
       causing the second line to be parsed as the -level argument, which hit the
-      ValidateSet and threw an extra error on top of the original one.
-    - drifttest.ps1 fixes: Duration property doesn't exist in ps 5.1 dsc objects
+      ValidateSet and threw an extra error on top of the original one. 
+    - drifttest.ps1 fixes: Found out duration property doesn't exist in ps 5.1 dsc objects
       (use DurationInSeconds instead), -Path and -Detailed are incompatible parameter
-      sets so we split them into two calls, ResourcesInDesiredState can be null so
+      sets so i split them into two calls, ResourcesInDesiredState can be null so
       arrays are filtered with Where-Object, domain SID checks that throw on standalone
       vms are caught and marked non-compliant rather than crashing the whole test run.

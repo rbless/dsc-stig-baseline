@@ -114,8 +114,8 @@ v1.1.0
 v1.1.1
     - manual corrections
     - closed missing brackets
-    - added notes and comments where language was unclear
-    - general readability pass
+    - added notes and comments where language was unclear (to ryan)
+    - general readability pass (for ryan)
 
 v1.2.0
     - stig version fix and package corrections
@@ -125,8 +125,8 @@ v1.2.0
     - readme.txt added and included in the zip package
 
 v1.2.1
-    - drifttest enhancement
-    - added get-dscconfigurationstatus to drifttest json report
+    - drift test enhancement
+    - added get-dscconfigurationstatus to drift test json report
     - captures last apply result, reboot status, duration, and lcm mode
 
 v1.2.2
@@ -169,6 +169,7 @@ v1.4.0
     - tested end-to-end on azure ws2016 + sql 2017 developer vm. bootstrap detects
       both targets, compiles two mofs (WS2016 and SQL2017), auto-invokes apply.
 
+
 v1.5.0
     - reboot persistence, sql audit cleanup, drifttest hardening
     - big one i missed: lcm push mode doesn't guarantee re-enforcement after a hard
@@ -195,3 +196,13 @@ v1.5.0
       sets so i split them into two calls, ResourcesInDesiredState can be null so
       arrays are filtered with Where-Object, domain SID checks that throw on standalone
       vms are caught and marked non-compliant rather than crashing the whole test run.
+
+v1.5.1
+    - skiprule corrections and zip naming convention
+    - corrected dsc skiprule: V-73649 (logon banner) was incorrectly identified as the rdp
+      lockout rule. replaced with V-225019 (deny log on through remote desktop services) which
+      is the actual rule blocking local accounts from rdp in a gapped/avd environment.
+    - added additional skiprules not applicable to environment: V-224862 (windows time service),
+      V-225038 (smart card removal lock), V-225059 (fips algorithm policy)
+    - deployment zip renamed to date-stamped format: dsc-stig-baseline-YYYY-MM-DD.zip
+    - previous zip versions archived to Old Versions\ subfolder for historical reference

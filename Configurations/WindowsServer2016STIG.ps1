@@ -45,7 +45,7 @@ Configuration windowsserver2016stig {
             OsRole      = $osrole
             StigVersion = '2.10'
             SkipRule    = @(
-                'V-73649',   # rdp group membership - not applicable to gapped/avd environment (verify vuln id)
+                'V-225019',  # deny log on through remote desktop services - blocks local accounts, not applicable to gapped/avd environment
                 'V-224862',  # windows time service - no external ntp reachable in gapped environment
                 'V-225038',  # smart card removal lock - smart cards not used in avd, local logon only
                 'V-225059'   # fips algorithm policy - not required in this environment

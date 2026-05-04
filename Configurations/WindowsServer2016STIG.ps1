@@ -67,6 +67,7 @@ Configuration windowsserver2016stig {
             ValueType = 'String'
             ValueData = 'LEGAL NOTICE - WARNING: For Official Use Only'
             Ensure    = 'Present'
+            Force     = $true
         }
 
         # ---------------------------------------------------------------

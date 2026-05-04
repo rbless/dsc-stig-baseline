@@ -1,5 +1,5 @@
 {
-  "PackageVersion": "1.2.0",
+  "PackageVersion": "1.5.2",
   "StigVersion": "2.10",
   "OsTarget": "Windows Server 2016",
   "PowerSTIGVersion": "4.29.0",

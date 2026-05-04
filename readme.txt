@@ -206,3 +206,14 @@ v1.5.1
       V-225038 (smart card removal lock), V-225059 (fips algorithm policy)
     - deployment zip renamed to date-stamped format: dsc-stig-baseline-YYYY-MM-DD.zip
     - previous zip versions archived to Old Versions\ subfolder for historical reference
+
+v1.5.2
+    - dos logon banner (replaces dod banner)
+    - V-225037 (logon banner caption) added to skiprule - dod-locked caption values are not
+      applicable to dos environment. caption is now set directly via a custom registry dsc
+      resource: 'LEGAL NOTICE - WARNING: For Official Use Only'
+    - V-225036 (logon banner body) overridden via orgsettings with dos-approved legal notice
+      text sourced from dos ginlsplash policy. the default dod banner text is replaced at mof
+      compile time - no post-apply editing required.
+    - confirmed powerstig 4.29.0 accepts orgsettings as a hashtable keyed by rule id with
+      valuedata property - merges cleanly on top of org.default.xml at compile time

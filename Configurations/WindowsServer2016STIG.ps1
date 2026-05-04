@@ -48,8 +48,25 @@ Configuration windowsserver2016stig {
                 'V-225019',  # deny log on through remote desktop services - blocks local accounts, not applicable to gapped/avd environment
                 'V-224862',  # windows time service - no external ntp reachable in gapped environment
                 'V-225038',  # smart card removal lock - smart cards not used in avd, local logon only
-                'V-225059'   # fips algorithm policy - not required in this environment
+                'V-225059',  # fips algorithm policy - not required in this environment
+                'V-225037'   # logon banner caption - dod-only values not applicable, replaced with dos caption via registry resource below
             )
+            # override banner body text with dos-approved legal notice (v-225036)
+            # v-225037 (caption) is skipped above and set directly via registry resource below
+            OrgSettings = @{
+                'V-225036' = @{
+                    ValueData = 'You are accessing a U.S. Government information system, which includes (1) this computer, (2) this computer network, (3) all computers connected to this network, and (4) all devices and storage media attached to this network or to a computer on this network. This information system is provided for U.S. Government-authorized use only. Unauthorized or improper use of this system may result in disciplinary action, as well as civil and criminal penalties. By using this information system, you understand and consent to the following: You have no reasonable expectation of privacy regarding any communications or data transiting or stored on this information system. At any time, and for any lawful government purpose, the government may monitor, intercept, and search and seize any communication or data transiting or stored on this information system. Any communications or data transiting or stored on this information system may be disclosed or used for any lawful government purpose. Nothing herein consents to the search or seizure of a privately-owned computer or other privately owned communications device, or the contents thereof, that is in the system user home. Opening e-mails from unknown/unconfirmed websites may open the Department''s systems to malware.'
+                }
+            }
+        }
+
+        ##### dos logon banner caption - replaces dod-locked caption from v-225037 with dos-approved text #####
+        Registry doscaptionbanner {
+            Key       = 'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\System'
+            ValueName = 'LegalNoticeCaption'
+            ValueType = 'String'
+            ValueData = 'LEGAL NOTICE - WARNING: For Official Use Only'
+            Ensure    = 'Present'
         }
 
         # ---------------------------------------------------------------

@@ -35,11 +35,11 @@ $erroractionpreference = 'Stop'
 # ---------------------------------------------------------------------------
 # logging
 # ---------------------------------------------------------------------------
-$timestamp  = Get-Date -Format 'yyyyMMdd_HHmmss'
-$logdir     = Join-Path $dscroot 'Logs'
-$null       = New-Item -ItemType Directory -Path $logdir -Force
-$logfile    = Join-Path $logdir "DriftTest_$timestamp.log"
-$reportfile = Join-Path $logdir "DriftReport_$timestamp.json"
+$timestamp    = Get-Date -Format 'yyyyMMdd_HHmmss'
+$logdir       = Join-Path $dscroot 'Logs'
+$null         = New-Item -ItemType Directory -Path $logdir -Force
+$logfile      = Join-Path $logdir "DriftTest_$timestamp.log"
+$reportfile   = Join-Path $logdir "DriftReport_$timestamp.json"
 
 ##### write-log: accepts a message string and optional level (info/warn/error). builds a timestamped entry string, appends it to the log file, then routes output to write-warning, write-error, or write-host depending on level #####
 function Write-Log {
@@ -179,6 +179,16 @@ try {
     ##### serialize the aggregated report to json and write to disk #####
     $report | ConvertTo-Json -Depth 8 | Out-File -FilePath $reportfile -Encoding UTF8
     Write-Log "report written: $reportfile"
+
+    ##### register event source if not present, then write drift summary as a json event for ama/winevent ingestion into log analytics #####
+    if (-not [System.Diagnostics.EventLog]::SourceExists('DSC-DriftTest')) {
+        New-EventLog -LogName Application -Source 'DSC-DriftTest'
+    }
+    $eventid   = if (-not $anydrift) { 1000 } else { 1001 }
+    $entrytype = if (-not $anydrift) { 'Information' } else { 'Warning' }
+    $eventmsg  = $report | ConvertTo-Json -Depth 8 -Compress
+    Write-EventLog -LogName Application -Source 'DSC-DriftTest' -EventId $eventid -EntryType $entrytype -Message $eventmsg
+    Write-Log "event written to Application log (EventId $eventid)"
 
     ##### branch on overall compliance -- auto-remediate if enabled, otherwise exit 1 to signal drift to the pipeline #####
     if (-not $anydrift) {

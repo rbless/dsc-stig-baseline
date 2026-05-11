@@ -22,6 +22,11 @@
 
 .EXAMPLE
     .\Bootstrap.ps1
+
+.NOTES
+    some domain-specific STIGs (e.g. user rights assignments that check domain SIDs) cannot apply
+    to a machine that is not domain-joined. it is normal for these to fail or error during testing
+    on a standalone VM — they are not bugs, just controls that require a domain context to evaluate.
 #>
 
 [CmdletBinding()]

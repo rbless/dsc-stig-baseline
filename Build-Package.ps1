@@ -12,7 +12,7 @@
       2. validates that vendored modules exist
       3. assembles the full C:\DSC folder structure into a staging directory
       4. stamps build date and builder name into version
-      5. outputs DSC_v<version>.zip ready to upload to blob storage
+      5. outputs dsc-stig-fixed.zip for blob storage pipeline (previous zip renamed with datestamp)
 
 .PARAMETER sourceroot
     root of this repo / working directory. default: script directory.
@@ -244,13 +244,14 @@ Write-Step "building zip"
 
 $null = New-Item -ItemType Directory -Path $outputpath -Force
 
-$zipname = "DSC_v$version.zip"
+$zipname = "dsc-stig-fixed.zip"
 $zippath = Join-Path $outputpath $zipname
 
-##### check if a zip for this version already exists — remove it before recreating so we don't append into a stale archive #####
+##### rename any existing dsc-stig-fixed.zip with a datestamp before overwriting — the dated file indicates when that version was deprecated #####
 if (Test-Path $zippath) {
-    Remove-Item $zippath -Force
-    Write-Host "    removed existing $zipname"
+    $deprecated = Join-Path $outputpath "dsc-stig-baseline-$(Get-Date -Format 'ddMMMyyyy').zip"
+    Rename-Item $zippath $deprecated -Force
+    Write-Host "    archived previous zip as: $(Split-Path $deprecated -Leaf)"
 }
 
 ##### use .net ZipFile directly rather than Compress-Archive — avoids the 2gb size limit that Compress-Archive hits with large module sets #####

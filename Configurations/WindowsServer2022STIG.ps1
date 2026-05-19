@@ -102,5 +102,28 @@ Configuration windowsserver2022stig {
             ValueData = '0'
             Ensure    = 'present'
         }
+
+        # ---------------------------------------------------------------
+        # ie mode (edge) — pending enterprise site list xml from other team
+        # TODO: uncomment once site list url(s) are available
+        # ---------------------------------------------------------------
+
+        # ##### enable ie mode in edge — sets integration level to ie mode (1) #####
+        # Registry iemode_integrationlevel {
+        #     Key       = 'HKLM:\SOFTWARE\Policies\Microsoft\Edge'
+        #     ValueName = 'InternetExplorerIntegrationLevel'
+        #     ValueType = 'dword'
+        #     ValueData = '1'
+        #     Ensure    = 'present'
+        # }
+
+        # ##### ie mode site list — path or url to enterprise mode site list xml #####
+        # Registry iemode_sitelist {
+        #     Key       = 'HKLM:\SOFTWARE\Policies\Microsoft\Edge'
+        #     ValueName = 'InternetExplorerIntegrationSiteList'
+        #     ValueType = 'string'
+        #     ValueData = ''  # set to \\server\share\sitelist.xml or https:// url
+        #     Ensure    = 'present'
+        # }
     }
 }

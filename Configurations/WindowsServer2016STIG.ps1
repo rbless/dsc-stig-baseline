@@ -127,5 +127,33 @@ Configuration windowsserver2016stig {
             ValueData = '0'
             Ensure    = 'present'
         }
+
+        # ---------------------------------------------------------------
+        # IE (internet explorer 11) mode (within ms edge) — pending enterprise site list to build xml
+        # IE mode just forces IE11 rendering onto a page loaded with Edge using IE engine (Trident?)
+        # TO DO: uncomment once site list url(s) are available
+        # ---------------------------------------------------------------
+
+        # ##### enable IE mode in edge — sets integration level to ie mode (1) #####
+        
+        # Registry iemode_integrationlevel {
+        #     Key       = 'HKLM:\SOFTWARE\Policies\Microsoft\Edge'
+        #     ValueName = 'InternetExplorerIntegrationLevel'
+        #     ValueType = 'dword'
+        #     ValueData = '1'
+        #     Ensure    = 'present'
+        # }
+
+        # ##### IE mode site list — path or url to enterprise mode site list xml #####
+
+        
+       
+        # Registry iemode_sitelist {
+        #     Key       = 'HKLM:\SOFTWARE\Policies\Microsoft\Edge'
+        #     ValueName = 'InternetExplorerIntegrationSiteList'
+        #     ValueType = 'string'
+        #     ValueData = ''  # set to \\server\share\sitelist.xml or https:// url
+        #     Ensure    = 'present'
+        # }
     }
 }

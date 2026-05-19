@@ -207,6 +207,14 @@ v1.5.1
     - deployment zip renamed to date-stamped format: dsc-stig-baseline-YYYY-MM-DD.zip
     - previous zip versions archived to Old Versions\ subfolder for historical reference
 
+v1.5.3
+    - ie mode stub (pending site list xml)
+    - added ie mode registry block to all three os configs (2016, 2019, 2022), commented
+      out pending enterprise site list xml from another team. two registry keys under
+      HKLM:\SOFTWARE\Policies\Microsoft\Edge: InternetExplorerIntegrationLevel (dword 1)
+      and InternetExplorerIntegrationSiteList (string, path/url tbd). uncomment both once
+      the site list is available and the xml is built.
+
 v1.5.2
     - dos logon banner (replaces dod banner)
     - V-225037 (logon banner caption) added to skiprule - dod-locked caption values are not

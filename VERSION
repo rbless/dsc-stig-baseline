@@ -1,14 +1,27 @@
 {
-  "PackageVersion": "1.5.2",
+  "PackageVersion": "1.5.4",
   "StigVersion": "2.10",
   "OsTarget": "Windows Server 2016",
   "PowerSTIGVersion": "4.29.0",
   "BuildDate": "",
   "BuiltBy": "",
   "Configs": {
-    "WindowsServer2016STIG": "1.0.0"
+    "WindowsServer2016STIG": "1.0.0",
+    "WindowsServer2019STIG": "1.0.0",
+    "WindowsServer2022STIG": "1.0.0",
+    "SqlServer2016STIG": "1.0.0",
+    "SqlServer2017STIG": "1.0.0",
+    "SqlServer2022STIG": "1.0.0",
+    "IIS10STIG": "1.0.0",
+    "AdobeAcrobatSTIG": "1.0.0"
   },
   "ChangeLog": [
+    {
+      "Version": "1.5.4",
+      "Date": "2026-05-20",
+      "Author": "Ryan",
+      "Notes": "Build-Package fixes: all configs included in zip, VMware modules excluded, archive naming collision fixed"
+    },
     {
       "Version": "1.2.0",
       "Date": "2026-04-11",

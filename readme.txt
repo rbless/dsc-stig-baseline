@@ -34,7 +34,7 @@ first time setup - step by step
 step 1
     - download modules (internet-connected machine, run once)
       powershell: .\VendorModules.ps1
-      downloads all required dsc modules from psgallery to C:\DSC\Modules\.
+      downloads all required dsc modules from psgallery to .\VendorOutput\Modules\.
       only needed once, or when updating module versions.
 
 step 2
@@ -44,7 +44,7 @@ step 2
 
 step 3
     - copy and extract the zip (if you have storage container in azure, az copy way faster)
-      copy dsc-stig-baseline.zip to the target machine.
+      copy dsc-stig-fixed.zip to the target machine.
       extract it to C:\
       the zip extracts to a DSC\ folder - it will land at C:\DSC\.
       do not extract into C:\DSC or you will get C:\DSC\DSC\.
@@ -206,6 +206,21 @@ v1.5.1
       V-225038 (smart card removal lock), V-225059 (fips algorithm policy)
     - deployment zip renamed to date-stamped format: dsc-stig-baseline-YYYY-MM-DD.zip
     - previous zip versions archived to Old Versions\ subfolder for historical reference
+
+v1.5.4
+    - build-package fixes: all configs included, vmware exclusion, archive naming
+    - build-package.ps1 was hardcoded to only copy WindowsServer2016STIG.ps1 into the zip.
+      all other configs (2019, 2022, sql 2016/2017/2022, iis 10, adobe acrobat) were silently
+      excluded from every package built since v1.3.0. replaced the hardcoded entry with a
+      glob copy of all *.ps1 files in Configurations\ so new configs are picked up automatically.
+    - vmware powercli modules (VMware.OpenAPI, VMware.Vim, VMware.VimAutomation.*, VMware.vSphereDSC)
+      were present in VendorOutput\Modules and getting bundled into every zip. removed them from
+      VendorOutput\Modules and added a Where-Object filter in build-package.ps1 to exclude any
+      VMware.* folder at build time - so even if they get pulled in by a future VendorModules run,
+      they will not end up in the package.
+    - zip dropped from ~79mb to ~7.68mb as a result of removing the vmware modules.
+    - archive filename format changed from ddMMMyyyy to ddMMMyyyy_HHmm so multiple builds on the
+      same day no longer collide (Rename-Item was failing with 'file already exists').
 
 v1.5.3
     - ie mode stub (pending site list xml)

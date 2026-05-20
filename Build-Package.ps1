@@ -195,23 +195,29 @@ foreach ($runtimefolder in @('Downloads', 'Logs', 'MOF', 'LCM', 'Reports', 'Hist
 # ---------------------------------------------------------------------------
 Write-Step "copying scripts and configuration files"
 
-##### define source-to-destination mapping for each deployable file — dst is relative to dscstage, empty string means dsc root #####
+##### define source-to-destination mapping for each deployable root-level script #####
 $filestocopy = @(
-    @{ src = 'Bootstrap.ps1';                            dst = '' }
-    @{ src = 'Apply.ps1';                                dst = '' }
-    @{ src = 'DriftTest.ps1';                            dst = '' }
-    @{ src = 'readme.txt';                               dst = '' }
-    @{ src = 'Configurations\WindowsServer2016STIG.ps1'; dst = 'Configurations' }
+    @{ src = 'Bootstrap.ps1';  dst = '' }
+    @{ src = 'Apply.ps1';      dst = '' }
+    @{ src = 'DriftTest.ps1';  dst = '' }
+    @{ src = 'readme.txt';     dst = '' }
 )
 
 ##### iterate the file map — resolves full source and destination paths, checks the source exists, then copies into staging #####
 foreach ($file in $filestocopy) {
     $srcpath = Join-Path $sourceroot $file.src
     $dstdir  = if ($file.dst) { Join-Path $dscstage $file.dst } else { $dscstage }
-    ##### check the source file exists before attempting copy — a missing file means the repo is incomplete, fail the build #####
     if (-not (Test-Path $srcpath)) { Write-Fail "source file not found: $srcpath" }
     Copy-Item -Path $srcpath -Destination $dstdir -Force
     Write-OK $file.src
+}
+
+##### copy all configuration scripts as a group rather than listing individually — ensures new configs are picked up automatically #####
+$configsrc = Join-Path $sourceroot 'Configurations'
+$configdst = Join-Path $dscstage 'Configurations'
+Get-ChildItem -Path $configsrc -Filter '*.ps1' | ForEach-Object {
+    Copy-Item -Path $_.FullName -Destination $configdst -Force
+    Write-OK "Configurations\$($_.Name)"
 }
 
 # ---------------------------------------------------------------------------
@@ -231,8 +237,8 @@ Write-Step "copying vendored modules"
 
 $moduledest = Join-Path $dscstage 'Modules'
 
-##### iterate each module directory under modulespath and copy the entire folder tree into the staging modules directory wholesale #####
-Get-ChildItem -Path $modulespath -Directory | ForEach-Object {
+##### iterate each module directory under modulespath and copy the entire folder tree into the staging modules directory wholesale — VMware.* excluded as they are unrelated to windows stig #####
+Get-ChildItem -Path $modulespath -Directory | Where-Object { $_.Name -notlike 'VMware*' } | ForEach-Object {
     Copy-Item -Path $_.FullName -Destination (Join-Path $moduledest $_.Name) -Recurse -Force
     Write-OK $_.Name
 }
@@ -249,7 +255,7 @@ $zippath = Join-Path $outputpath $zipname
 
 ##### rename any existing dsc-stig-fixed.zip with a datestamp before overwriting — the dated file indicates when that version was deprecated #####
 if (Test-Path $zippath) {
-    $deprecated = Join-Path $outputpath "dsc-stig-baseline-$(Get-Date -Format 'ddMMMyyyy').zip"
+    $deprecated = Join-Path $outputpath "dsc-stig-baseline-$(Get-Date -Format 'ddMMMyyyy_HHmm').zip"
     Rename-Item $zippath $deprecated -Force
     Write-Host "    archived previous zip as: $(Split-Path $deprecated -Leaf)"
 }

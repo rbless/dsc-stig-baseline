@@ -1,5 +1,5 @@
 {
-  "PackageVersion": "1.5.4",
+  "PackageVersion": "1.5.5",
   "StigVersion": "2.10",
   "OsTarget": "Windows Server 2016",
   "PowerSTIGVersion": "4.29.0",
@@ -16,6 +16,12 @@
     "AdobeAcrobatSTIG": "1.0.0"
   },
   "ChangeLog": [
+    {
+      "Version": "1.5.5",
+      "Date": "2026-05-21",
+      "Author": "Ryan",
+      "Notes": "2019 STIG skip rules and banner config translated from 2016 baseline"
+    },
     {
       "Version": "1.5.4",
       "Date": "2026-05-20",

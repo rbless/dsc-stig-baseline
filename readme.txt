@@ -207,6 +207,25 @@ v1.5.1
     - deployment zip renamed to date-stamped format: dsc-stig-baseline-YYYY-MM-DD.zip
     - previous zip versions archived to Old Versions\ subfolder for historical reference
 
+v1.5.2
+    - dos logon banner (replaces dod banner)
+    - V-225037 (logon banner caption) added to skiprule - dod-locked caption values are not
+      applicable to dos environment. caption is now set directly via a custom registry dsc
+      resource: 'LEGAL NOTICE - WARNING: For Official Use Only'
+    - V-225036 (logon banner body) overridden via orgsettings with dos-approved legal notice
+      text sourced from dos ginlsplash policy. the default dod banner text is replaced at mof
+      compile time - no post-apply editing required.
+    - confirmed powerstig 4.29.0 accepts orgsettings as a hashtable keyed by rule id with
+      valuedata property - merges cleanly on top of org.default.xml at compile time
+
+v1.5.3
+    - ie mode stub (pending site list xml)
+    - added ie mode registry block to all three os configs (2016, 2019, 2022), commented
+      out pending enterprise site list xml from another team. two registry keys under
+      HKLM:\SOFTWARE\Policies\Microsoft\Edge: InternetExplorerIntegrationLevel (dword 1)
+      and InternetExplorerIntegrationSiteList (string, path/url tbd). uncomment both once
+      the site list is available and the xml is built.
+
 v1.5.4
     - build-package fixes: all configs included, vmware exclusion, archive naming
     - build-package.ps1 was hardcoded to only copy WindowsServer2016STIG.ps1 into the zip.
@@ -222,21 +241,10 @@ v1.5.4
     - archive filename format changed from ddMMMyyyy to ddMMMyyyy_HHmm so multiple builds on the
       same day no longer collide (Rename-Item was failing with 'file already exists').
 
-v1.5.3
-    - ie mode stub (pending site list xml)
-    - added ie mode registry block to all three os configs (2016, 2019, 2022), commented
-      out pending enterprise site list xml from another team. two registry keys under
-      HKLM:\SOFTWARE\Policies\Microsoft\Edge: InternetExplorerIntegrationLevel (dword 1)
-      and InternetExplorerIntegrationSiteList (string, path/url tbd). uncomment both once
-      the site list is available and the xml is built.
-
-v1.5.2
-    - dos logon banner (replaces dod banner)
-    - V-225037 (logon banner caption) added to skiprule - dod-locked caption values are not
-      applicable to dos environment. caption is now set directly via a custom registry dsc
-      resource: 'LEGAL NOTICE - WARNING: For Official Use Only'
-    - V-225036 (logon banner body) overridden via orgsettings with dos-approved legal notice
-      text sourced from dos ginlsplash policy. the default dod banner text is replaced at mof
-      compile time - no post-apply editing required.
-    - confirmed powerstig 4.29.0 accepts orgsettings as a hashtable keyed by rule id with
-      valuedata property - merges cleanly on top of org.default.xml at compile time
+v1.5.5
+    - 2019 stig skip rules and banner config, matching 2016 baseline
+    - translated five ws2016 skip rules to their ws2019 V-number equivalents:
+        * V-205733 (deny rdp logon), V-205800 (windows time service),
+          V-205912 (smart card removal), V-205842 (fips policy), V-205632 (banner caption)
+    - added orgsettings for V-205631 (banner body) with dos-approved legal notice text
+    - added dos caption banner registry resource matching 2016 behavior

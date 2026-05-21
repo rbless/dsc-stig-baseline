@@ -246,5 +246,7 @@ v1.5.5
     - translated five ws2016 skip rules to their ws2019 V-number equivalents:
         * V-205733 (deny rdp logon), V-205800 (windows time service),
           V-205912 (smart card removal), V-205842 (fips policy), V-205632 (banner caption)
+    - added V-205672 (deny access to this computer from the network) to skiprule -
+      default value includes local account which blocks rdp on standalone vms
     - added orgsettings for V-205631 (banner body) with dos-approved legal notice text
     - added dos caption banner registry resource matching 2016 behavior

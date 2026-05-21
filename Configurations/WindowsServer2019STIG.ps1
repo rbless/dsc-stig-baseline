@@ -45,6 +45,7 @@ Configuration windowsserver2019stig {
             StigVersion = '3.7'
             SkipRule    = @(
                 'V-205733',  # deny log on through remote desktop services - blocks local accounts, not applicable to gapped/avd environment
+                'V-205672',  # deny access to this computer from the network - default includes local account, blocks rdp on standalone vms
                 'V-205800',  # windows time service - no external ntp reachable in gapped environment
                 'V-205912',  # smart card removal lock - smart cards not used in avd, local logon only
                 'V-205842',  # fips algorithm policy - not required in this environment

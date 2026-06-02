@@ -241,6 +241,15 @@ v1.5.4
     - archive filename format changed from ddMMMyyyy to ddMMMyyyy_HHmm so multiple builds on the
       same day no longer collide (Rename-Item was failing with 'file already exists').
 
+v1.5.6
+    - explicitly disable fips via registry on 2016 and 2019
+    - fips algorithm policy is skipped in powerstig on both platforms (V-225059 on 2016,
+      V-205842 on 2019) because fips is not required in this environment. however, leaving
+      the registry key unset allows a prior gpo push or os default to silently enable it.
+    - added Registry disablefips block to WindowsServer2016STIG.ps1 and
+      WindowsServer2019STIG.ps1: FipsAlgorithmPolicy\Enabled = 0. enforces the intent
+      explicitly and prevents accidental drift.
+
 v1.5.5
     - 2019 stig skip rules and banner config, matching 2016 baseline
     - translated five ws2016 skip rules to their ws2019 V-number equivalents:

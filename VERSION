@@ -1,5 +1,5 @@
 {
-  "PackageVersion": "1.5.5",
+  "PackageVersion": "1.5.6",
   "StigVersion": "2.10",
   "OsTarget": "Windows Server 2016",
   "PowerSTIGVersion": "4.29.0",
@@ -16,6 +16,12 @@
     "AdobeAcrobatSTIG": "1.0.0"
   },
   "ChangeLog": [
+    {
+      "Version": "1.5.6",
+      "Date": "2026-06-02",
+      "Author": "Ryan",
+      "Notes": "Explicitly disable FIPS via registry on 2016 (V-225059) and 2019 (V-205842) — rules are skipped in PowerSTIG but EnabledFips=0 now enforced to prevent accidental drift"
+    },
     {
       "Version": "1.5.5",
       "Date": "2026-05-21",

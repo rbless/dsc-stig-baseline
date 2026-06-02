@@ -70,6 +70,15 @@ Configuration windowsserver2016stig {
             Force     = $true
         }
 
+        ##### disable fips algorithm policy — v-225059 skipped; explicitly set enabled=0 to prevent accidental enforcement #####
+        Registry disablefips {
+            Key       = 'HKLM:\SYSTEM\CurrentControlSet\Control\Lsa\FipsAlgorithmPolicy'
+            ValueName = 'Enabled'
+            ValueType = 'dword'
+            ValueData = '0'
+            Ensure    = 'present'
+        }
+
         # ---------------------------------------------------------------
         # additional hardening not covered by powerstig
         # ---------------------------------------------------------------

@@ -113,7 +113,8 @@ function Get-StigTargets {
         Get-ChildItem $oraclekey -ErrorAction SilentlyContinue |
             Where-Object { $_.PSChildName -match '^KEY_' } |
             ForEach-Object {
-                $ver = (Get-ItemProperty $_.PSPath -ErrorAction SilentlyContinue).ORACLE_HOME_VERSION
+                $props = Get-ItemProperty $_.PSPath -ErrorAction SilentlyContinue
+                $ver   = if ($props -and $props.PSObject.Properties['ORACLE_HOME_VERSION']) { $props.ORACLE_HOME_VERSION } else { $null }
                 ##### add oracle target only once per major version even if multiple homes exist #####
                 if ($ver -match '^12' -and 'Oracle12c' -notin $detected) { $detected.Add('Oracle12c') }
                 if ($ver -match '^19' -and 'Oracle19c' -notin $detected) { $detected.Add('Oracle19c') }

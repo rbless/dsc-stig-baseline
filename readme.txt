@@ -241,6 +241,13 @@ v1.5.4
     - archive filename format changed from ddMMMyyyy to ddMMMyyyy_HHmm so multiple builds on the
       same day no longer collide (Rename-Item was failing with 'file already exists').
 
+v1.5.7
+    - fix oracle detection crash under strict mode
+    - bootstrap.ps1 was crashing at step 3 on machines with oracle registry keys (HKLM:\SOFTWARE\ORACLE\KEY_*)
+      that don't have an ORACLE_HOME_VERSION property. set-strictmode -version latest throws
+      PropertyNotFoundException on the .ORACLE_HOME_VERSION dereference. fixed by checking
+      PSObject.Properties before accessing the value.
+
 v1.5.6
     - explicitly disable fips via registry on 2016 and 2019
     - fips algorithm policy is skipped in powerstig on both platforms (V-225059 on 2016,

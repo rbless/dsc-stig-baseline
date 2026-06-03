@@ -1,5 +1,5 @@
 {
-  "PackageVersion": "1.5.6",
+  "PackageVersion": "1.5.7",
   "StigVersion": "2.10",
   "OsTarget": "Windows Server 2016",
   "PowerSTIGVersion": "4.29.0",
@@ -16,6 +16,12 @@
     "AdobeAcrobatSTIG": "1.0.0"
   },
   "ChangeLog": [
+    {
+      "Version": "1.5.7",
+      "Date": "2026-06-03",
+      "Author": "Ryan",
+      "Notes": "Fix oracle detection crash under strict mode — ORACLE_HOME_VERSION property access now guarded via PSObject.Properties before dereference"
+    },
     {
       "Version": "1.5.6",
       "Date": "2026-06-02",

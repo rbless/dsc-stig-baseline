@@ -241,12 +241,15 @@ v1.5.4
     - archive filename format changed from ddMMMyyyy to ddMMMyyyy_HHmm so multiple builds on the
       same day no longer collide (Rename-Item was failing with 'file already exists').
 
-v1.5.7
-    - fix oracle detection crash under strict mode
-    - bootstrap.ps1 was crashing at step 3 on machines with oracle registry keys (HKLM:\SOFTWARE\ORACLE\KEY_*)
-      that don't have an ORACLE_HOME_VERSION property. set-strictmode -version latest throws
-      PropertyNotFoundException on the .ORACLE_HOME_VERSION dereference. fixed by checking
-      PSObject.Properties before accessing the value.
+v1.5.5
+    - 2019 stig skip rules and banner config, matching 2016 baseline
+    - translated five ws2016 skip rules to their ws2019 V-number equivalents:
+        * V-205733 (deny rdp logon), V-205800 (windows time service),
+          V-205912 (smart card removal), V-205842 (fips policy), V-205632 (banner caption)
+    - added V-205672 (deny access to this computer from the network) to skiprule -
+      default value includes local account which blocks rdp on standalone vms
+    - added orgsettings for V-205631 (banner body) with dos-approved legal notice text
+    - added dos caption banner registry resource matching 2016 behavior
 
 v1.5.6
     - explicitly disable fips via registry on 2016 and 2019
@@ -257,12 +260,9 @@ v1.5.6
       WindowsServer2019STIG.ps1: FipsAlgorithmPolicy\Enabled = 0. enforces the intent
       explicitly and prevents accidental drift.
 
-v1.5.5
-    - 2019 stig skip rules and banner config, matching 2016 baseline
-    - translated five ws2016 skip rules to their ws2019 V-number equivalents:
-        * V-205733 (deny rdp logon), V-205800 (windows time service),
-          V-205912 (smart card removal), V-205842 (fips policy), V-205632 (banner caption)
-    - added V-205672 (deny access to this computer from the network) to skiprule -
-      default value includes local account which blocks rdp on standalone vms
-    - added orgsettings for V-205631 (banner body) with dos-approved legal notice text
-    - added dos caption banner registry resource matching 2016 behavior
+v1.5.7
+    - fix oracle detection crash under strict mode
+    - bootstrap.ps1 was crashing at step 3 on machines with oracle registry keys (HKLM:\SOFTWARE\ORACLE\KEY_*)
+      that don't have an ORACLE_HOME_VERSION property. set-strictmode -version latest throws
+      PropertyNotFoundException on the .ORACLE_HOME_VERSION dereference. fixed by checking
+      PSObject.Properties before accessing the value.

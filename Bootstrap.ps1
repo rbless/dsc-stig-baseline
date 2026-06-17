@@ -85,24 +85,34 @@ function Get-StigTargets {
         default  { Write-Log "unrecognized os: $($osinfo.Caption) -- no os stig will be applied" 'warn' }
     }
 
-    # sql server -- check for installed instances via the sql instance names registry key.
-    # then enumerate version-numbered subkeys under the sql root to identify installed versions.
-    # internal version numbers: 110=2012, 120=2014, 130=2016, 140=2017, 150=2019
+    # sql server -- enumerate Instance Names\SQL registry values, which list actual engine instances.
+    # each value name is the instance name (MSSQLSERVER for default, or a named instance like SQLEXPRESS).
+    # each value data is MSSQLXX.INSTANCENAME where XX encodes the sql major version
+    # (11=2012, 12=2014, 13=2016, 14=2017, 15=2019). using Instance Names rather than numeric
+    # subkeys avoids false positives from sql client tools that register subkeys without an engine.
     $sqlinstanceskey = 'HKLM:\SOFTWARE\Microsoft\Microsoft SQL Server\Instance Names\SQL'
     if (Test-Path $sqlinstanceskey) {
-        $sqlrootkey = 'HKLM:\SOFTWARE\Microsoft\Microsoft SQL Server'
-        ##### iterate numeric subkeys (e.g. 120, 130) under the sql root -- each represents an installed version family #####
-        Get-ChildItem $sqlrootkey -ErrorAction SilentlyContinue |
-            Where-Object { $_.PSChildName -match '^\d{2,3}$' } |
-            ForEach-Object {
-                switch ($_.PSChildName) {
-                    '110' { $detected.Add('SQL2012') }
-                    '120' { $detected.Add('SQL2014') }
-                    '130' { $detected.Add('SQL2016') }
-                    '140' { $detected.Add('SQL2017') }
-                    '150' { $detected.Add('SQL2019') }
+        ##### each value under Instance Names\SQL is one engine instance -- name is the instance name,
+        ##### data encodes the sql version via the MSSQLXX prefix. encode both as SQL2017:INSTANCENAME
+        ##### so the instance name survives into the mof compilation step #####
+        $instanceprops = Get-ItemProperty $sqlinstanceskey -ErrorAction SilentlyContinue
+        if ($instanceprops) {
+            $instanceprops.PSObject.Properties |
+                Where-Object { $_.Name -notlike 'PS*' } |
+                ForEach-Object {
+                    $instancename = $_.Name   # e.g. MSSQLSERVER or SQLEXPRESS
+                    $regref       = $_.Value  # e.g. MSSQL14.MSSQLSERVER
+                    if ($regref -match '^MSSQL(\d+)\.') {
+                        switch ($matches[1]) {
+                            '11' { $detected.Add("SQL2012:$instancename") }
+                            '12' { $detected.Add("SQL2014:$instancename") }
+                            '13' { $detected.Add("SQL2016:$instancename") }
+                            '14' { $detected.Add("SQL2017:$instancename") }
+                            '15' { $detected.Add("SQL2019:$instancename") }
+                        }
+                    }
                 }
-            }
+        }
     }
 
     # oracle -- check HKLM:\SOFTWARE\ORACLE for KEY_ prefixed subkeys representing oracle homes.
@@ -114,7 +124,13 @@ function Get-StigTargets {
             Where-Object { $_.PSChildName -match '^KEY_' } |
             ForEach-Object {
                 $props = Get-ItemProperty $_.PSPath -ErrorAction SilentlyContinue
-                $ver   = if ($props -and $props.PSObject.Properties['ORACLE_HOME_VERSION']) { $props.ORACLE_HOME_VERSION } else { $null }
+                # try ORACLE_HOME_VERSION first; fall back to parsing the major version from the key name (e.g. KEY_OraDB19Home1 -> 19)
+                $ver = $null
+                if ($props -and $props.PSObject.Properties['ORACLE_HOME_VERSION']) {
+                    $ver = $props.ORACLE_HOME_VERSION
+                } elseif ($_.PSChildName -match 'Ora\w*?(\d{2})') {
+                    $ver = $matches[1]
+                }
                 ##### add oracle target only once per major version even if multiple homes exist #####
                 if ($ver -match '^12' -and 'Oracle12c' -notin $detected) { $detected.Add('Oracle12c') }
                 if ($ver -match '^19' -and 'Oracle19c' -notin $detected) { $detected.Add('Oracle19c') }
@@ -324,12 +340,13 @@ try {
         $null = New-Item -ItemType Directory -Path $mofsubpath -Force
 
         ##### os configs accept -osrole to switch between member server and dc rule sets.
-        ##### sql configs accept -serverinstance (defaults to MSSQLSERVER for default instance).
+        ##### sql configs pass the instance name detected from Instance Names\SQL (defaults to MSSQLSERVER).
         ##### non-os/non-sql configs (oracle, iis, adobe) take only nodename and outputpath. #####
         if ($targetkey -match '^WS' -and $osrole) {
             & $cfg.Function -NodeName 'localhost' -OsRole $osrole -OutputPath $mofsubpath
         } elseif ($targetkey -match '^SQL') {
-            & $cfg.Function -NodeName 'localhost' -ServerInstance 'localhost' -OutputPath $mofsubpath
+            $instancename = if ($target -match ':(.+)$') { $matches[1] } else { 'MSSQLSERVER' }
+            & $cfg.Function -NodeName 'localhost' -ServerInstance $instancename -OutputPath $mofsubpath
         } else {
             & $cfg.Function -NodeName 'localhost' -OutputPath $mofsubpath
         }

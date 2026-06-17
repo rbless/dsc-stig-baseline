@@ -266,3 +266,24 @@ v1.5.7
       that don't have an ORACLE_HOME_VERSION property. set-strictmode -version latest throws
       PropertyNotFoundException on the .ORACLE_HOME_VERSION dereference. fixed by checking
       PSObject.Properties before accessing the value.
+
+v1.5.8
+    - fix oracle not detected when ORACLE_HOME_VERSION registry property is absent
+    - the v1.5.7 PSObject.Properties guard prevented the crash but silently skipped detection
+      when ORACLE_HOME_VERSION doesn't exist in the registry (common on some oracle installs).
+    - added fallback: parse the major version from the KEY_ subkey name itself
+      (e.g. KEY_OraDB19Home1 -> 19, KEY_OraClient12Home1 -> 12) when the property is missing.
+
+v1.5.9
+    - fix sql named instance not detected / mof compilation fails for non-default instances
+    - bootstrap was hardcoding ServerInstance = 'localhost' which powerstig resolves to
+      MSSQLSERVER on the local machine. machines with named sql instances (e.g. SQLEXPRESS
+      or custom instance names) would compile a mof pointing at the wrong instance and fail
+      during Apply with 'Failed to obtain a SQL Server instance with name MSSQLSERVER'.
+    - also fixed sql detection: was enumerating numeric version subkeys under the sql root
+      which includes sql client tools and shared components (false positives for SQL2012/SQL2014
+      on machines that only have sql tools installed, not an engine). switched to enumerating
+      Instance Names\SQL registry values which lists only actual engine instances. value name
+      is the instance name, value data (MSSQL14.INSTANCENAME) encodes the sql major version.
+    - instance name now encoded in the detected target as SQL2017:INSTANCENAME and extracted
+      at mof compile time, same pattern as WS2019:ms for os role.

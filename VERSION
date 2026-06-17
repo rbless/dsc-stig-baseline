@@ -1,5 +1,5 @@
 {
-  "PackageVersion": "1.5.7",
+  "PackageVersion": "1.5.9",
   "StigVersion": "2.10",
   "OsTarget": "Windows Server 2016",
   "PowerSTIGVersion": "4.29.0",
@@ -16,6 +16,18 @@
     "AdobeAcrobatSTIG": "1.0.0"
   },
   "ChangeLog": [
+    {
+      "Version": "1.5.9",
+      "Date": "2026-06-17",
+      "Author": "Ryan",
+      "Notes": "Fix SQL named instance: detect instance name from Instance Names\\SQL registry values instead of hardcoding MSSQLSERVER; also fixes false SQL2012/SQL2014 detections from client tools"
+    },
+    {
+      "Version": "1.5.8",
+      "Date": "2026-06-10",
+      "Author": "Ryan",
+      "Notes": "Fix Oracle not detected when ORACLE_HOME_VERSION is absent — falls back to parsing major version from KEY_ subkey name (e.g. KEY_OraDB19Home1 -> 19)"
+    },
     {
       "Version": "1.5.7",
       "Date": "2026-06-03",

@@ -1,5 +1,5 @@
 {
-  "PackageVersion": "1.6.0",
+  "PackageVersion": "1.6.1",
   "StigVersion": "2.10",
   "OsTarget": "Windows Server 2016",
   "PowerSTIGVersion": "4.29.0",
@@ -16,6 +16,12 @@
     "AdobeAcrobatSTIG": "1.0.0"
   },
   "ChangeLog": [
+    {
+      "Version": "1.6.1",
+      "Date": "2026-06-17",
+      "Author": "Ryan",
+      "Notes": "apply.ps1: LCM Disabled-mode check at startup + try/catch around post-apply Test-DscConfiguration so a transitional LCM state doesn't crash an already-completed apply run"
+    },
     {
       "Version": "1.6.0",
       "Date": "2026-06-17",

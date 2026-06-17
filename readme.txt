@@ -274,6 +274,17 @@ v1.5.8
     - added fallback: parse the major version from the KEY_ subkey name itself
       (e.g. KEY_OraDB19Home1 -> 19, KEY_OraClient12Home1 -> 12) when the property is missing.
 
+v1.6.1
+    - apply.ps1: fix crash when lcm is in disabled mode
+    - apply.ps1 was calling test-dscconfiguration after start-dscconfiguration. if the lcm
+      transitioned to Disabled mode during the apply (pending reboot, gpo override, or machine
+      never bootstrapped), test-dscconfiguration throws and crashes the entire apply run even
+      though the configuration was already applied successfully.
+    - added lcm refreshmode check at startup: if the lcm is Disabled before any work begins,
+      throw a clear message telling the operator to run Bootstrap.ps1 first.
+    - wrapped the post-apply test-dscconfiguration in try/catch: if it fails after the apply
+      already ran, log a warning and continue rather than crashing the whole script.
+
 v1.6.0
     - oracle correctly handled as manual-only stig
     - oracle 12c and 19c detection is kept (useful to know oracle is present in the log)

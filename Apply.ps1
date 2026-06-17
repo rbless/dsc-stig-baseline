@@ -60,6 +60,14 @@ try {
     Write-Log "========== apply started on $env:COMPUTERNAME =========="
     Write-Log "force: $force"
 
+    ##### check lcm refreshmode before doing any work -- disabled mode means bootstrap has not run
+    ##### or a gpo has overridden the lcm config. start-dscconfiguration and test-dscconfiguration
+    ##### both fail in disabled mode, so catch it early with an actionable message #####
+    $lcmstate = Get-DscLocalConfigurationManager -ErrorAction SilentlyContinue
+    if ($lcmstate -and $lcmstate.RefreshMode -eq 'Disabled') {
+        throw "lcm refreshmode is 'Disabled' on $env:COMPUTERNAME. run Bootstrap.ps1 to reconfigure the lcm to Push mode before running Apply."
+    }
+
     $mofpath = Join-Path $dscroot 'MOF'
 
     ##### check if the mof directory exists -- if missing, bootstrap has not run yet, abort #####
@@ -95,13 +103,19 @@ try {
 
         Start-DscConfiguration @params
 
-        ##### post-apply compliance check -- warns if not fully in desired state, which may indicate a pending reboot #####
-        $testresult = Test-DscConfiguration -Path $mofdir.FullName
-        if ($testresult) {
-            Write-Log "$target -- in desired state"
-        } else {
-            Write-Log "$target -- not fully in desired state. a reboot may be required." 'warn'
-            $drifted++
+        ##### post-apply compliance check -- wrapped in try/catch because the lcm can enter a transitional
+        ##### state after applying (e.g. pending reboot) that causes test-dscconfiguration to throw.
+        ##### a failure here is non-fatal -- the apply already ran, log a warning and continue. #####
+        try {
+            $testresult = Test-DscConfiguration -Path $mofdir.FullName
+            if ($testresult) {
+                Write-Log "$target -- in desired state"
+            } else {
+                Write-Log "$target -- not fully in desired state. a reboot may be required." 'warn'
+                $drifted++
+            }
+        } catch {
+            Write-Log "$target -- compliance check skipped: $($_ -replace '[\r\n]+',' ')" 'warn'
         }
 
         $applied++

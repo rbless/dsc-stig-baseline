@@ -1,5 +1,5 @@
 {
-  "PackageVersion": "1.5.9",
+  "PackageVersion": "1.6.0",
   "StigVersion": "2.10",
   "OsTarget": "Windows Server 2016",
   "PowerSTIGVersion": "4.29.0",
@@ -16,6 +16,12 @@
     "AdobeAcrobatSTIG": "1.0.0"
   },
   "ChangeLog": [
+    {
+      "Version": "1.6.0",
+      "Date": "2026-06-17",
+      "Author": "Ryan",
+      "Notes": "Oracle 12c/19c removed from configmap — DISA manual checklist only, no PowerSTIG/DSC automation available. Detection kept for logging; replaced misleading warn with explicit info message."
+    },
     {
       "Version": "1.5.9",
       "Date": "2026-06-17",

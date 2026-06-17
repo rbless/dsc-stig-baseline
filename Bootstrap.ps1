@@ -190,8 +190,6 @@ $configmap = [ordered]@{
     'SQL2016'   = @{ Script = 'Configurations\SqlServer2016STIG.ps1';       Function = 'sqlserver2016stig'       }
     'SQL2017'   = @{ Script = 'Configurations\SqlServer2017STIG.ps1';       Function = 'sqlserver2017stig'       }
     'SQL2019'   = @{ Script = 'Configurations\SqlServer2019STIG.ps1';       Function = 'sqlserver2019stig'       }
-    'Oracle12c'    = @{ Script = 'Configurations\Oracle12cSTIG.ps1';          Function = 'oracle12cstig'          }
-    'Oracle19c'    = @{ Script = 'Configurations\Oracle19cSTIG.ps1';          Function = 'oracle19cstig'          }
     'IIS8.5'       = @{ Script = 'Configurations\IIS85STIG.ps1';              Function = 'iis85stig'              }
     'IIS10.0'      = @{ Script = 'Configurations\IIS10STIG.ps1';              Function = 'iis10stig'              }
     'Apache2.4'    = @{ Script = 'Configurations\Apache24STIG.ps1';           Function = 'apache24stig'           }
@@ -312,10 +310,20 @@ try {
 
     $compiled = 0
 
+    # oracle database stig exists only as a manual checklist -- disa has not released automated
+    # benchmark content for it and powerstig has no oracle database parser. detection is kept
+    # so the log shows oracle is present, but no mof is compiled for it.
+    $manualonlytargets = @('Oracle12c', 'Oracle19c')
+
     ##### iterate each detected target -- strip the :role suffix for map lookup, pass role as parameter for os configs #####
     foreach ($target in $targets) {
         $targetkey = $target -replace ':.*$', ''
         $osrole    = if ($target -match ':(.+)$') { $matches[1] } else { $null }
+
+        if ($manualonlytargets -contains $targetkey) {
+            Write-Log "$targetkey detected -- oracle database stig is a manual checklist only, no dsc automation available, skipping mof compilation"
+            continue
+        }
 
         if (-not $configmap.Contains($targetkey)) {
             Write-Log "no config mapped for detected target: $targetkey -- skipping" 'warn'

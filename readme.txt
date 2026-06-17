@@ -274,6 +274,15 @@ v1.5.8
     - added fallback: parse the major version from the KEY_ subkey name itself
       (e.g. KEY_OraDB19Home1 -> 19, KEY_OraClient12Home1 -> 12) when the property is missing.
 
+v1.6.0
+    - oracle correctly handled as manual-only stig
+    - oracle 12c and 19c detection is kept (useful to know oracle is present in the log)
+      but oracle database stig is a disa manual checklist only -- powerstig has no oracle
+      database parser and there is no dsc module that can configure oracle internals.
+      oracle entries removed from configmap, replaced with an explicit info log at runtime
+      explaining why no mof is compiled. eliminates the misleading 'config script not found'
+      warning that implied a missing file rather than a product that cannot be automated.
+
 v1.5.9
     - fix sql named instance not detected / mof compilation fails for non-default instances
     - bootstrap was hardcoding ServerInstance = 'localhost' which powerstig resolves to

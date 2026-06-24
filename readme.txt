@@ -274,39 +274,6 @@ v1.5.8
     - added fallback: parse the major version from the KEY_ subkey name itself
       (e.g. KEY_OraDB19Home1 -> 19, KEY_OraClient12Home1 -> 12) when the property is missing.
 
-v1.6.2
-    - bootstrap.ps1: switch sql server connection to tcp to fix named-pipe deployment failures
-      previously the serverinstance passed to sql configs was the raw registry instance name
-      (e.g. MSSQLSERVER or SQLEXPRESS), which powerstig sql resources treated as the server
-      hostname -- causing connections to fail via named pipes to a non-existent machine name.
-      bootstrap now resolves the correct localhost,1433 (default instance) or
-      localhost\INSTANCENAME,PORT (named instances, port read from tcp/ipall registry key)
-      so dsc connects via tcp.
-    - sql stigs: skip tls 1.0 schannel rules that were breaking ssis packages
-      the sql 2016 stig rules V-213967.a/.e/.i/.m and sql 2022 rule V-271310.b disable
-      tls 1.0 by setting Enabled=0 and DisabledByDefault=1 in schannel. these rules are
-      now skipped so tls 1.0 remains available for ssis packages that require it.
-
-v1.6.1
-    - apply.ps1: fix crash when lcm is in disabled mode
-    - apply.ps1 was calling test-dscconfiguration after start-dscconfiguration. if the lcm
-      transitioned to Disabled mode during the apply (pending reboot, gpo override, or machine
-      never bootstrapped), test-dscconfiguration throws and crashes the entire apply run even
-      though the configuration was already applied successfully.
-    - added lcm refreshmode check at startup: if the lcm is Disabled before any work begins,
-      throw a clear message telling the operator to run Bootstrap.ps1 first.
-    - wrapped the post-apply test-dscconfiguration in try/catch: if it fails after the apply
-      already ran, log a warning and continue rather than crashing the whole script.
-
-v1.6.0
-    - oracle correctly handled as manual-only stig
-    - oracle 12c and 19c detection is kept (useful to know oracle is present in the log)
-      but oracle database stig is a disa manual checklist only -- powerstig has no oracle
-      database parser and there is no dsc module that can configure oracle internals.
-      oracle entries removed from configmap, replaced with an explicit info log at runtime
-      explaining why no mof is compiled. eliminates the misleading 'config script not found'
-      warning that implied a missing file rather than a product that cannot be automated.
-
 v1.5.9
     - fix sql named instance not detected / mof compilation fails for non-default instances
     - bootstrap was hardcoding ServerInstance = 'localhost' which powerstig resolves to
@@ -320,3 +287,36 @@ v1.5.9
       is the instance name, value data (MSSQL14.INSTANCENAME) encodes the sql major version.
     - instance name now encoded in the detected target as SQL2017:INSTANCENAME and extracted
       at mof compile time, same pattern as WS2019:ms for os role.
+
+v1.6.0
+    - oracle correctly handled as manual-only stig
+    - oracle 12c and 19c detection is kept (useful to know oracle is present in the log)
+      but oracle database stig is a disa manual checklist only -- powerstig has no oracle
+      database parser and there is no dsc module that can configure oracle internals.
+      oracle entries removed from configmap, replaced with an explicit info log at runtime
+      explaining why no mof is compiled. eliminates the misleading 'config script not found'
+      warning that implied a missing file rather than a product that cannot be automated.
+
+v1.6.1
+    - apply.ps1: fix crash when lcm is in disabled mode
+    - apply.ps1 was calling test-dscconfiguration after start-dscconfiguration. if the lcm
+      transitioned to Disabled mode during the apply (pending reboot, gpo override, or machine
+      never bootstrapped), test-dscconfiguration throws and crashes the entire apply run even
+      though the configuration was already applied successfully.
+    - added lcm refreshmode check at startup: if the lcm is Disabled before any work begins,
+      throw a clear message telling the operator to run Bootstrap.ps1 first.
+    - wrapped the post-apply test-dscconfiguration in try/catch: if it fails after the apply
+      already ran, log a warning and continue rather than crashing the whole script.
+
+v1.6.2
+    - bootstrap.ps1: switch sql server connection to tcp to fix named-pipe deployment failures
+      previously the serverinstance passed to sql configs was the raw registry instance name
+      (e.g. MSSQLSERVER or SQLEXPRESS), which powerstig sql resources treated as the server
+      hostname -- causing connections to fail via named pipes to a non-existent machine name.
+      bootstrap now resolves the correct localhost,1433 (default instance) or
+      localhost\INSTANCENAME,PORT (named instances, port read from tcp/ipall registry key)
+      so dsc connects via tcp.
+    - sql stigs: skip tls 1.0 schannel rules that were breaking ssis packages
+      the sql 2016 stig rules V-213967.a/.e/.i/.m and sql 2022 rule V-271310.b disable
+      tls 1.0 by setting Enabled=0 and DisabledByDefault=1 in schannel. these rules are
+      now skipped so tls 1.0 remains available for ssis packages that require it.

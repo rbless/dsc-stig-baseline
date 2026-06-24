@@ -274,6 +274,19 @@ v1.5.8
     - added fallback: parse the major version from the KEY_ subkey name itself
       (e.g. KEY_OraDB19Home1 -> 19, KEY_OraClient12Home1 -> 12) when the property is missing.
 
+v1.6.2
+    - bootstrap.ps1: switch sql server connection to tcp to fix named-pipe deployment failures
+      previously the serverinstance passed to sql configs was the raw registry instance name
+      (e.g. MSSQLSERVER or SQLEXPRESS), which powerstig sql resources treated as the server
+      hostname -- causing connections to fail via named pipes to a non-existent machine name.
+      bootstrap now resolves the correct localhost,1433 (default instance) or
+      localhost\INSTANCENAME,PORT (named instances, port read from tcp/ipall registry key)
+      so dsc connects via tcp.
+    - sql stigs: skip tls 1.0 schannel rules that were breaking ssis packages
+      the sql 2016 stig rules V-213967.a/.e/.i/.m and sql 2022 rule V-271310.b disable
+      tls 1.0 by setting Enabled=0 and DisabledByDefault=1 in schannel. these rules are
+      now skipped so tls 1.0 remains available for ssis packages that require it.
+
 v1.6.1
     - apply.ps1: fix crash when lcm is in disabled mode
     - apply.ps1 was calling test-dscconfiguration after start-dscconfiguration. if the lcm

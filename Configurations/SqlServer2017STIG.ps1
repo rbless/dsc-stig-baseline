@@ -43,6 +43,12 @@ Configuration sqlserver2017stig {
             SqlRole        = 'Instance'
             StigVersion    = '3.6'
             ServerInstance = $serverinstance
+            SkipRule       = @(
+                'V-213967.a',  # tls 1.0 client disabledbydefault=1 -- skipped: disabling tls 1.0 breaks ssis packages
+                'V-213967.e',  # tls 1.0 server disabledbydefault=1 -- skipped: same
+                'V-213967.i',  # tls 1.0 client enabled=0 -- skipped: same
+                'V-213967.m'   # tls 1.0 server enabled=0 -- skipped: same
+            )
         }
     }
 }

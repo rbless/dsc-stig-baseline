@@ -348,13 +348,38 @@ try {
         $null = New-Item -ItemType Directory -Path $mofsubpath -Force
 
         ##### os configs accept -osrole to switch between member server and dc rule sets.
-        ##### sql configs pass the instance name detected from Instance Names\SQL (defaults to MSSQLSERVER).
-        ##### non-os/non-sql configs (oracle, iis, adobe) take only nodename and outputpath. #####
+        ##### sql configs pass the instance in localhost,PORT or localhost\INSTANCE,PORT format to force
+        ##### tcp and avoid named-pipe fallback. non-os/non-sql configs take only nodename and outputpath. #####
         if ($targetkey -match '^WS' -and $osrole) {
             & $cfg.Function -NodeName 'localhost' -OsRole $osrole -OutputPath $mofsubpath
         } elseif ($targetkey -match '^SQL') {
-            $instancename = if ($target -match ':(.+)$') { $matches[1] } else { 'MSSQLSERVER' }
-            & $cfg.Function -NodeName 'localhost' -ServerInstance $instancename -OutputPath $mofsubpath
+            $rawinstance = if ($target -match ':(.+)$') { $matches[1] } else { 'MSSQLSERVER' }
+            if ($rawinstance -eq 'MSSQLSERVER') {
+                ##### default instance: port 1433 forces tcp and avoids named-pipe fallback #####
+                $sqlserverinstance = 'localhost,1433'
+            } else {
+                ##### named instance: read dynamic tcp port from registry; fall back to sql browser path if absent #####
+                $sqlroot   = 'HKLM:\SOFTWARE\Microsoft\Microsoft SQL Server'
+                $instprops = Get-ItemProperty "$sqlroot\Instance Names\SQL" -ErrorAction SilentlyContinue
+                $regref2   = if ($instprops -and $instprops.PSObject.Properties[$rawinstance]) { $instprops.$rawinstance } else { $null }
+                $tcpport   = $null
+                if ($regref2) {
+                    $tcpipall = "$sqlroot\$regref2\MSSQLServer\SuperSocketNetLib\Tcp\IPAll"
+                    if (Test-Path $tcpipall) {
+                        $tp      = Get-ItemProperty $tcpipall -ErrorAction SilentlyContinue
+                        $tcpport = if ($tp.TcpPort -and $tp.TcpPort -ne '') { $tp.TcpPort }
+                                   elseif ($tp.TcpDynamicPorts -and $tp.TcpDynamicPorts -ne '') { $tp.TcpDynamicPorts }
+                                   else { $null }
+                    }
+                }
+                if ($tcpport) {
+                    $sqlserverinstance = "localhost\$rawinstance,$tcpport"
+                } else {
+                    Write-Log "tcp port not found for sql instance $rawinstance -- falling back to sql browser path" 'warn'
+                    $sqlserverinstance = "localhost\$rawinstance"
+                }
+            }
+            & $cfg.Function -NodeName 'localhost' -ServerInstance $sqlserverinstance -OutputPath $mofsubpath
         } else {
             & $cfg.Function -NodeName 'localhost' -OutputPath $mofsubpath
         }

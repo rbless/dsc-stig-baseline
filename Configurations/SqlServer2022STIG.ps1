@@ -39,6 +39,9 @@ Configuration sqlserver2022stig {
             SqlRole        = 'Instance'
             StigVersion    = '1.3'
             ServerInstance = $serverinstance
+            SkipRule       = @(
+                'V-271310.b'   # tls 1.0 disable rule -- skipped: disabling tls 1.0 breaks ssis packages
+            )
         }
     }
 }

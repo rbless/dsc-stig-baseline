@@ -1,5 +1,5 @@
 {
-  "PackageVersion": "1.6.1",
+  "PackageVersion": "1.6.2",
   "StigVersion": "2.10",
   "OsTarget": "Windows Server 2016",
   "PowerSTIGVersion": "4.29.0",
@@ -16,6 +16,12 @@
     "AdobeAcrobatSTIG": "1.0.0"
   },
   "ChangeLog": [
+    {
+      "Version": "1.6.2",
+      "Date": "2026-06-24",
+      "Author": "Ryan",
+      "Notes": "Fix sql named-pipe deployment failure: bootstrap now passes localhost,PORT (default instance) or localhost\\INSTANCE,PORT (named) to force tcp. Skip tls 1.0 SCHANNEL rules (V-213967.a/.e/.i/.m for sql 2016/2017, V-271310.b for sql 2022) that were breaking ssis packages."
+    },
     {
       "Version": "1.6.1",
       "Date": "2026-06-17",

@@ -310,6 +310,16 @@ v1.6.1
 
 v1.6.2
     - bootstrap.ps1: switch sql server connection to tcp to fix named-pipe deployment failures
+      (see v1.6.3 for named instance follow-up fix)
+
+v1.6.3
+    - fix named sql instance connection: port cannot be appended after backslash in serverinstance
+      powerstig splits serverinstance on backslash to separate servername from instancename, so
+      localhost\INST1,1433 produced instancename='INST1,1433' which broke sqlprotocol wmi lookup
+      with 'failed to obtain sql server instance with name INST1,1433'. named instances now use
+      localhost\INSTANCE (shared memory handles local connections without a port). default instance
+      keeps localhost,1433 -- port in the server name is safe because no backslash is present so
+      smo reads servername='localhost,1433' and instancename='MSSQLSERVER' correctly.
       previously the serverinstance passed to sql configs was the raw registry instance name
       (e.g. MSSQLSERVER or SQLEXPRESS), which powerstig sql resources treated as the server
       hostname -- causing connections to fail via named pipes to a non-existent machine name.

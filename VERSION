@@ -1,5 +1,5 @@
 {
-  "PackageVersion": "1.6.2",
+  "PackageVersion": "1.6.3",
   "StigVersion": "2.10",
   "OsTarget": "Windows Server 2016",
   "PowerSTIGVersion": "4.29.0",
@@ -16,6 +16,12 @@
     "AdobeAcrobatSTIG": "1.0.0"
   },
   "ChangeLog": [
+    {
+      "Version": "1.6.3",
+      "Date": "2026-06-30",
+      "Author": "Ryan",
+      "Notes": "Fix named instance connection: remove port from named instance ServerInstance string. PowerSTIG splits on backslash so localhost\\INST1,PORT put the port inside instanceName, breaking SqlProtocol WMI lookup. Named instances now use localhost\\INSTANCE (shared memory for local connections). Default instance keeps localhost,1433 (port in server name is safe -- no backslash so SMO reads it correctly)."
+    },
     {
       "Version": "1.6.2",
       "Date": "2026-06-24",

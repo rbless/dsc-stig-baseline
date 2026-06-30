@@ -91,6 +91,70 @@ adding new stig targets
 5. rebuild and redistribute the zip
 
 
+********* active skip rules *********
+
+this section is the authoritative reference for every rule currently skipped across all configs.
+keep this updated when rules are added or removed. reasoning is documented here for cyber review.
+
+--- windows server (2016 / 2019 / 2022) ---
+
+  V-225019 / V-205733 / V-254439  deny log on through remote desktop services
+    reason: this rule removes local accounts from the rdp allow list. in the avd/gapped
+            environment local accounts are the only logon method. enforcing this locks
+            operators out of the vm entirely.
+
+  V-225037 / V-205632 / V-254458  logon banner caption (LegalNoticeCaption)
+    reason: the dod-mandated caption value is not appropriate for a dos environment.
+            rule is skipped and the dos-approved caption is set directly via a registry
+            resource in each os config: 'LEGAL NOTICE - WARNING: For Official Use Only'
+
+  V-224862 / V-205800 / V-254281  windows time service (w32tm / ntp)
+    reason: the rule requires an external ntp source. this environment is air-gapped
+            and has no external ntp reachable. enforcing causes drift warnings and
+            failed compliance checks with no corrective action available.
+
+  V-225038 / V-205912 / V-254459  smart card removal lock
+    reason: smart cards are not used in this avd environment. local logon only.
+            enforcing this causes unnecessary lockouts.
+
+  V-225059 / V-205842 / V-254276  fips algorithm policy
+    reason: fips is not required in this environment and enabling it breaks certain
+            application components. rule is skipped and fips is explicitly disabled
+            via Registry disablefips resource (Enabled=0) in each os config to prevent
+            accidental enforcement via gpo drift.
+
+  V-205672 / V-254435  (ws2019 / ws2022 only) deny access to this computer from the network
+    reason: the default membership of this right includes local accounts. on standalone
+            vms this blocks rdp. skipped to preserve management access.
+
+--- sql server 2016 / 2017 ---
+
+  V-213967.a  tls 1.0 client — DisabledByDefault=1
+  V-213967.e  tls 1.0 server — DisabledByDefault=1
+  V-213967.i  tls 1.0 client — Enabled=0
+  V-213967.m  tls 1.0 server — Enabled=0
+    reason: these four rules disable tls 1.0 in the windows schannel registry. ssis
+            packages in use by the application connect via .net components that default
+            to tls 1.0. disabling tls 1.0 caused ssis package connection failures.
+            tls 1.2 enforcement rules (V-213967.q/.r/.s/.t) are still active.
+
+  V-214028  sa account disable
+    reason: the setscript runs ALTER LOGIN [sa] DISABLE against principal_id=1.
+            on awis-sql2-SOW this disabled the install-created admin account making it
+            appear removed (the account exists but cannot log in). sa/admin account
+            management is handled outside dsc. re-enable manually if needed:
+            ALTER LOGIN [sa] ENABLE (or the renamed equivalent) from any active sysadmin.
+
+--- sql server 2022 ---
+
+  V-271310.b  tls 1.0 disable rule
+    reason: same as V-213967.i/.m above. sql 2022 stig consolidates the tls 1.0
+            disablement into a single rule. ssis package compatibility.
+
+  V-274444  sa account disable
+    reason: same as V-214028 above. sql 2022 equivalent rule.
+
+
 ********* changelog *********
 
 version history
@@ -318,6 +382,19 @@ v1.6.3
 
 v1.6.4
     - skip sql sa-disable rules: V-214028 (sql 2016/2017) and V-274444 (sql 2022)
+      (see v1.6.5 for ws2022 parity and skip rules reference section)
+
+v1.6.5
+    - add skip rule parity to windows server 2022 config
+      ws2022 was missing the same environment exemptions applied to 2016 and 2019.
+      added skiprule block with translated v-numbers: V-254439 (deny rdp logon),
+      V-254435 (deny network access), V-254281 (windows time service),
+      V-254459 (smart card removal), V-254276 (fips), V-254458 (banner caption).
+      also added orgsettings for V-254457 (banner body), dos caption registry resource,
+      and disablefips registry block to match 2016/2019 pattern.
+    - add active skip rules reference section to readme.txt above changelog
+      single authoritative list of all currently skipped rules with reasoning,
+      organized by platform. intended for cyber review and change documentation.
       the setscript for these rules runs ALTER LOGIN [sa] DISABLE against principal_id=1.
       on awis-sql2-SOW this disabled the install admin account, making it appear removed.
       sa management is handled outside dsc; these rules are now skipped to prevent recurrence.

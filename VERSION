@@ -1,5 +1,5 @@
 {
-  "PackageVersion": "1.6.4",
+  "PackageVersion": "1.6.5",
   "StigVersion": "2.10",
   "OsTarget": "Windows Server 2016",
   "PowerSTIGVersion": "4.29.0",
@@ -16,6 +16,12 @@
     "AdobeAcrobatSTIG": "1.0.0"
   },
   "ChangeLog": [
+    {
+      "Version": "1.6.5",
+      "Date": "2026-06-30",
+      "Author": "Ryan",
+      "Notes": "Add full skip rule parity to WS2022 (V-254439/435/281/459/276/458), matching 2016/2019 environment exemptions. Add OrgSettings DOS banner body (V-254457), DOS caption registry resource, and disablefips registry block to WS2022. Add active skip rules reference section to readme.txt above changelog for cyber review."
+    },
     {
       "Version": "1.6.4",
       "Date": "2026-06-30",

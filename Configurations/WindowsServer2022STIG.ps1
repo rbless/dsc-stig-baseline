@@ -43,6 +43,41 @@ Configuration windowsserver2022stig {
             OsVersion   = '2022'
             OsRole      = $osrole
             StigVersion = '2.7'
+            SkipRule    = @(
+                'V-254439',  # deny log on through remote desktop services - blocks local accounts, not applicable to gapped/avd environment
+                'V-254435',  # deny access to this computer from the network - default includes local account, blocks rdp on standalone vms
+                'V-254281',  # windows time service - no external ntp reachable in gapped environment
+                'V-254459',  # smart card removal lock - smart cards not used in avd, local logon only
+                'V-254276',  # fips algorithm policy - not required in this environment
+                'V-254458'   # logon banner caption - dod-only values not applicable, replaced with dos caption via registry resource below
+            )
+            # override banner body text with dos-approved legal notice (v-254457)
+            # v-254458 (caption) is skipped above and set directly via registry resource below
+            OrgSettings = @{
+                'V-254457' = @{
+                    ValueData = 'You are accessing a U.S. Government information system, which includes (1) this computer, (2) this computer network, (3) all computers connected to this network, and (4) all devices and storage media attached to this network or to a computer on this network. This information system is provided for U.S. Government-authorized use only. Unauthorized or improper use of this system may result in disciplinary action, as well as civil and criminal penalties. By using this information system, you understand and consent to the following: You have no reasonable expectation of privacy regarding any communications or data transiting or stored on this information system. At any time, and for any lawful government purpose, the government may monitor, intercept, and search and seize any communication or data transiting or stored on this information system. Any communications or data transiting or stored on this information system may be disclosed or used for any lawful government purpose. Nothing herein consents to the search or seizure of a privately-owned computer or other privately owned communications device, or the contents thereof, that is in the system user home. Opening e-mails from unknown/unconfirmed websites may open the Department''s systems to malware.'
+                }
+            }
+        }
+
+        ##### dos logon banner caption - replaces dod-locked caption from v-254458 with dos-approved text #####
+        Registry doscaptionbanner {
+            Key       = 'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\System'
+            ValueName = 'LegalNoticeCaption'
+            ValueType = 'String'
+            ValueData = 'LEGAL NOTICE - WARNING: For Official Use Only'
+            Ensure    = 'Present'
+            Force     = $true
+        }
+
+        ##### disable fips algorithm policy — v-254276 skipped; explicitly set enabled=0 to prevent accidental enforcement #####
+        Registry disablefips {
+            Key       = 'HKLM:\SYSTEM\CurrentControlSet\Control\Lsa\FipsAlgorithmPolicy'
+            ValueName = 'Enabled'
+            ValueType = 'dword'
+            ValueData = '0'
+            Ensure    = 'present'
+            Force     = $true
         }
 
         # ---------------------------------------------------------------

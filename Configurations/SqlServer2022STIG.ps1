@@ -40,7 +40,10 @@ Configuration sqlserver2022stig {
             StigVersion    = '1.3'
             ServerInstance = $serverinstance
             SkipRule       = @(
-                'V-271310.b'   # tls 1.0 disable rule -- skipped: disabling tls 1.0 breaks ssis packages
+                'V-271310.b',  # tls 1.0 disable rule -- skipped: disabling tls 1.0 breaks ssis packages
+                'V-274444'     # sa disable -- skipped: setscript runs ALTER LOGIN [sa] DISABLE on principal_id=1;
+                               # broke app admin access on awis-sql2-SOW (account disabled, appeared removed).
+                               # sa is already renamed/managed outside dsc; re-enable manually and skip enforcement here.
             )
         }
     }

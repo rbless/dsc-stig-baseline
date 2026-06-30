@@ -1,5 +1,5 @@
 {
-  "PackageVersion": "1.6.3",
+  "PackageVersion": "1.6.4",
   "StigVersion": "2.10",
   "OsTarget": "Windows Server 2016",
   "PowerSTIGVersion": "4.29.0",
@@ -16,6 +16,12 @@
     "AdobeAcrobatSTIG": "1.0.0"
   },
   "ChangeLog": [
+    {
+      "Version": "1.6.4",
+      "Date": "2026-06-30",
+      "Author": "Ryan",
+      "Notes": "Skip SA disable rules (V-214028 sql2016/2017, V-274444 sql2022) and add Force=$true to disablefips and disablenetbioshelper across all OS configs. V-214028/V-274444 SetScript runs ALTER LOGIN [sa] DISABLE on principal_id=1 — disabled the install admin account on awis-sql2-SOW making it appear removed. disablefips and disablenetbioshelper were missing Force=$true causing WS2019 LCM consistency check to fail every 15 min when those pre-existing registry values needed overwriting."
+    },
     {
       "Version": "1.6.3",
       "Date": "2026-06-30",

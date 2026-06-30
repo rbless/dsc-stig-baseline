@@ -314,6 +314,18 @@ v1.6.2
 
 v1.6.3
     - fix named sql instance connection: port cannot be appended after backslash in serverinstance
+      (see v1.6.4 for additional sql and os registry fixes discovered during testing)
+
+v1.6.4
+    - skip sql sa-disable rules: V-214028 (sql 2016/2017) and V-274444 (sql 2022)
+      the setscript for these rules runs ALTER LOGIN [sa] DISABLE against principal_id=1.
+      on awis-sql2-SOW this disabled the install admin account, making it appear removed.
+      sa management is handled outside dsc; these rules are now skipped to prevent recurrence.
+      to restore: ALTER LOGIN [sa] ENABLE (or the renamed equivalent) from any active sysadmin.
+    - add Force=$true to disablefips and disablenetbioshelper in all three os configs (2016/2019/2022)
+      both registry keys already exist on windows (FipsAlgorithmPolicy\Enabled and lmhosts\Start)
+      and MSFT_RegistryResource requires Force=$true to overwrite pre-existing values. without it
+      the WS2019 LCM consistency check was failing every 15 minutes with InvalidOperationException.
       powerstig splits serverinstance on backslash to separate servername from instancename, so
       localhost\INST1,1433 produced instancename='INST1,1433' which broke sqlprotocol wmi lookup
       with 'failed to obtain sql server instance with name INST1,1433'. named instances now use

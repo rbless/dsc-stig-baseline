@@ -77,6 +77,7 @@ Configuration windowsserver2016stig {
             ValueType = 'dword'
             ValueData = '0'
             Ensure    = 'present'
+            Force     = $true
         }
 
         # ---------------------------------------------------------------
@@ -108,6 +109,7 @@ Configuration windowsserver2016stig {
             ValueType = 'dword'
             ValueData = '4'
             Ensure    = 'present'
+            Force     = $true
         }
 
         ##### disable wdigest authentication — prevents windows from caching cleartext credentials in lsass memory #####

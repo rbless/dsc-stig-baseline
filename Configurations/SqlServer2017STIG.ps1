@@ -47,7 +47,10 @@ Configuration sqlserver2017stig {
                 'V-213967.a',  # tls 1.0 client disabledbydefault=1 -- skipped: disabling tls 1.0 breaks ssis packages
                 'V-213967.e',  # tls 1.0 server disabledbydefault=1 -- skipped: same
                 'V-213967.i',  # tls 1.0 client enabled=0 -- skipped: same
-                'V-213967.m'   # tls 1.0 server enabled=0 -- skipped: same
+                'V-213967.m',  # tls 1.0 server enabled=0 -- skipped: same
+                'V-214028'     # sa disable -- skipped: setscript runs ALTER LOGIN [sa] DISABLE on principal_id=1;
+                               # broke app admin access on awis-sql2-SOW (account disabled, appeared removed).
+                               # sa is already renamed/managed outside dsc; re-enable manually and skip enforcement here.
             )
         }
     }

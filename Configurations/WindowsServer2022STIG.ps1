@@ -74,6 +74,7 @@ Configuration windowsserver2022stig {
             ValueType = 'dword'
             ValueData = '4'
             Ensure    = 'present'
+            Force     = $true
         }
 
         ##### disable wdigest — prevents cleartext credential caching in lsass #####

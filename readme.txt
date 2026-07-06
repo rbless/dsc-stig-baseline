@@ -117,11 +117,15 @@ keep this updated when rules are added or removed. reasoning is documented here 
     reason: smart cards are not used in this avd environment. local logon only.
             enforcing this causes unnecessary lockouts.
 
-  V-225059 / V-205842 / V-254276  fips algorithm policy
+  V-225059 / V-205842  (ws2016 / ws2019 only) fips algorithm policy
     reason: fips is not required in this environment and enabling it breaks certain
             application components. rule is skipped and fips is explicitly disabled
             via Registry disablefips resource (Enabled=0) in each os config to prevent
             accidental enforcement via gpo drift.
+    note:   ws2022 stig has NO dedicated fips rule -- the disablefips registry resource
+            in the ws2022 config is drift protection only. V-254276 was previously listed
+            here mislabeled as fips; it is actually the smbv1 disable rule (SMB1=0) and
+            has been removed from the ws2022 skip list so smbv1 remains disabled.
 
   V-205672 / V-254435  (ws2019 / ws2022 only) deny access to this computer from the network
     reason: the default membership of this right includes local accounts. on standalone
@@ -153,6 +157,51 @@ keep this updated when rules are added or removed. reasoning is documented here 
 
   V-274444  sa account disable
     reason: same as V-214028 above. sql 2022 equivalent rule.
+
+
+********* landmines and known behavior *********
+
+these are STIG rules or PowerSTIG behaviors we do NOT skip, but that operators
+should be aware of because they can cause disruptive or hard-to-diagnose incidents.
+
+--- sql audit ON_FAILURE = SHUTDOWN ---
+
+  affected rules: V-213939, V-213940, V-213942, V-213943, V-213989,
+                  V-214000, V-214004, V-214014 (sql 2016/2017)
+                  and their sql 2022 equivalents (V-271272, V-271273, V-271351,
+                  V-271370, V-271375 -- audit rules with the same setscript)
+
+  behavior: each of these rules runs a T-SQL setscript that creates the
+            STIG_AUDIT server audit with:
+                WITH (QUEUE_DELAY = 1000, ON_FAILURE = SHUTDOWN)
+            if the audit target (C:\Audits) becomes unwritable -- disk full,
+            permission changes, folder deletion -- sql server SHUTS ITSELF DOWN.
+
+  mitigation: Bootstrap.ps1 pre-creates C:\Audits with default acls before compile
+              time. operators must monitor free space on the audit drive and never
+              hand-edit permissions on C:\Audits. if sql server refuses to start
+              after an apply, check the audit target first.
+
+--- sql SqlScriptQuery is destructive ---
+
+  behavior: PowerSTIG rules that use the SqlScriptQuery dsc resource run
+            arbitrary T-SQL setscripts, which may include DROP LOGIN, DISABLE LOGIN,
+            or ALTER SERVER ROLE ... DROP MEMBER. these are not reversible via dsc.
+
+  mitigation: before enabling a new sql rule in ApplyAndAutoCorrect mode, read the
+              setscript from StigData\Processed\SqlServer-*.xml. V-214028/V-274444
+              already skipped as a known landmine (see skip rules section).
+
+--- bootstrap default sql instance uses port 1433 ---
+
+  behavior: Bootstrap.ps1 passes 'localhost,1433' to PowerSTIG for the default
+            (MSSQLSERVER) instance to force tcp instead of named pipes.
+
+  mitigation: if the default instance is configured on a non-standard tcp port,
+            dsc will silently fail to connect. verify the instance is on 1433
+            or extend Bootstrap.ps1 to read the port from
+            HKLM:\SOFTWARE\Microsoft\Microsoft SQL Server\<MSSQLxx.MSSQLSERVER>\
+            MSSQLServer\SuperSocketNetLib\Tcp\IPAll before adjusting.
 
 
 ********* changelog *********
@@ -386,6 +435,7 @@ v1.6.4
 
 v1.6.5
     - add skip rule parity to windows server 2022 config
+      (see v1.6.6 for correction: V-254276 was miscategorized and has been removed)
       ws2022 was missing the same environment exemptions applied to 2016 and 2019.
       added skiprule block with translated v-numbers: V-254439 (deny rdp logon),
       V-254435 (deny network access), V-254281 (windows time service),
@@ -419,3 +469,16 @@ v1.6.5
       the sql 2016 stig rules V-213967.a/.e/.i/.m and sql 2022 rule V-271310.b disable
       tls 1.0 by setting Enabled=0 and DisabledByDefault=1 in schannel. these rules are
       now skipped so tls 1.0 remains available for ssis packages that require it.
+
+v1.6.6
+    - fix ws2022 skip list: remove V-254276 (mislabeled as fips in v1.6.5)
+      V-254276 is actually the smbv1 disable rule (SMB1=0 in LanmanServer\Parameters),
+      not the fips algorithm policy. skipping it disabled a security control we want on.
+      the ws2022 stig has NO dedicated fips rule -- unlike ws2016 (V-225059) and
+      ws2019 (V-205842). the disablefips registry resource remains in the ws2022 config
+      but is now documented as drift protection only, not a rule override.
+    - add "landmines and known behavior" reference section to readme.txt
+      documents non-skipped rules and behaviors that can still cause operational
+      issues: sql audit ON_FAILURE=SHUTDOWN, SqlScriptQuery destructiveness,
+      and the bootstrap default-instance port 1433 assumption. intended for
+      cyber/ops awareness so unexpected incidents can be diagnosed quickly.

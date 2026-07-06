@@ -48,9 +48,10 @@ Configuration windowsserver2022stig {
                 'V-254435',  # deny access to this computer from the network - default includes local account, blocks rdp on standalone vms
                 'V-254281',  # windows time service - no external ntp reachable in gapped environment
                 'V-254459',  # smart card removal lock - smart cards not used in avd, local logon only
-                'V-254276',  # fips algorithm policy - not required in this environment
                 'V-254458'   # logon banner caption - dod-only values not applicable, replaced with dos caption via registry resource below
             )
+            # note: ws2022 stig has no dedicated fips algorithm policy rule (unlike ws2016 V-225059 and ws2019 V-205842).
+            # V-254276 previously appeared in this list mislabeled as fips -- it is actually the smbv1 disable rule and has been removed.
             # override banner body text with dos-approved legal notice (v-254457)
             # v-254458 (caption) is skipped above and set directly via registry resource below
             OrgSettings = @{
@@ -70,7 +71,7 @@ Configuration windowsserver2022stig {
             Force     = $true
         }
 
-        ##### disable fips algorithm policy — v-254276 skipped; explicitly set enabled=0 to prevent accidental enforcement #####
+        ##### disable fips algorithm policy — ws2022 stig has no fips rule; this is pure drift protection to prevent gpo/os defaults from re-enabling fips #####
         Registry disablefips {
             Key       = 'HKLM:\SYSTEM\CurrentControlSet\Control\Lsa\FipsAlgorithmPolicy'
             ValueName = 'Enabled'

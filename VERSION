@@ -1,5 +1,5 @@
 {
-  "PackageVersion": "1.6.5",
+  "PackageVersion": "1.6.6",
   "StigVersion": "2.10",
   "OsTarget": "Windows Server 2016",
   "PowerSTIGVersion": "4.29.0",
@@ -16,6 +16,12 @@
     "AdobeAcrobatSTIG": "1.0.0"
   },
   "ChangeLog": [
+    {
+      "Version": "1.6.6",
+      "Date": "2026-07-06",
+      "Author": "Ryan",
+      "Notes": "Fix WS2022 skip list — V-254276 removed from skip. Post-review found V-254276 is the SMBv1 disable rule (SMB1=0), not FIPS as previously labeled; skipping it disabled a security control we want on. WS2022 STIG has no dedicated FIPS rule so the disablefips registry resource is now documented as drift protection only. Also added a landmine/known-behavior section to readme.txt covering SQL audit ON_FAILURE=SHUTDOWN, SqlScriptQuery destructiveness, and the bootstrap port 1433 assumption for cyber/ops awareness."
+    },
     {
       "Version": "1.6.5",
       "Date": "2026-06-30",

@@ -149,6 +149,16 @@ keep this updated when rules are added or removed. reasoning is documented here 
             management is handled outside dsc. re-enable manually if needed:
             ALTER LOGIN [sa] ENABLE (or the renamed equivalent) from any active sysadmin.
 
+  V-213958  clr enabled -- SqlServerConfiguration sp_configure 'clr enabled', 0
+    reason: SqlServerConfiguration reasserts 'clr enabled' to 0 every 15 minutes
+            via the lcm applyandautocorrect pass. app owner requires clr assemblies
+            enabled -- appeared as intermittent clr outages to the user because
+            manually enabling it lasted only until the next lcm consistency check.
+            skipped in SqlServer2017STIG.ps1 only. SqlServer2016STIG.ps1 remains
+            strict until a 2016 instance reports the same requirement. expect
+            V-213958 to show open on scap scans of the 2017 instance; document
+            as poam citing mission need for clr assemblies.
+
 --- sql server 2022 ---
 
   V-271310.b  tls 1.0 disable rule
@@ -482,3 +492,15 @@ v1.6.6
       issues: sql audit ON_FAILURE=SHUTDOWN, SqlScriptQuery destructiveness,
       and the bootstrap default-instance port 1433 assumption. intended for
       cyber/ops awareness so unexpected incidents can be diagnosed quickly.
+
+v1.6.7
+    - skip sql clr enabled rule on sql 2017 config
+    - V-213958 (LegacyId V-79179) added to SqlServer2017STIG.ps1 skiprule. the
+      SqlServerConfiguration dsc resource was reasserting sp_configure 'clr enabled', 0
+      every 15 minutes via the lcm applyandautocorrect pass. app owner reported
+      clr kept turning off after enabling it -- root cause was the drift correction.
+    - SqlServer2016STIG.ps1 intentionally left strict for now. if a 2016 instance
+      hits the same requirement, mirror the skip there and update the reference
+      section above.
+    - active skip rules reference section updated to include V-213958 under sql
+      2016 / 2017 with note that it only applies to the 2017 config file.

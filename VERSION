@@ -1,5 +1,5 @@
 {
-  "PackageVersion": "1.6.6",
+  "PackageVersion": "1.6.7",
   "StigVersion": "2.10",
   "OsTarget": "Windows Server 2016",
   "PowerSTIGVersion": "4.29.0",
@@ -16,6 +16,12 @@
     "AdobeAcrobatSTIG": "1.0.0"
   },
   "ChangeLog": [
+    {
+      "Version": "1.6.7",
+      "Date": "2026-07-23",
+      "Author": "Ryan",
+      "Notes": "Skip V-213958 (clr enabled) on SQL 2017 config only. SqlServerConfiguration was reasserting sp_configure 'clr enabled', 0 every 15 min via LCM autocorrect — surfaced as intermittent CLR outages to the app owner. SqlServer2016STIG.ps1 left strict pending a 2016 instance requiring the same. Active skip rules reference section in readme.txt updated to match."
+    },
     {
       "Version": "1.6.6",
       "Date": "2026-07-06",

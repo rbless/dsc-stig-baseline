@@ -102,12 +102,12 @@ Configuration windowsserver2019stig {
             Ensure    = 'present'
         }
 
-        ##### disable netbios over tcp/ip #####
-        Registry disablenetbioshelper {
+        ##### enable tcp/ip netbios helper (lmhosts) - required for nbt short name resolution on non domain hosts. start=2 automatic #####
+        Registry enablenetbioshelper {
             Key       = 'HKLM:\SYSTEM\CurrentControlSet\Services\lmhosts'
             ValueName = 'Start'
             ValueType = 'dword'
-            ValueData = '4'
+            ValueData = '2'
             Ensure    = 'present'
             Force     = $true
         }

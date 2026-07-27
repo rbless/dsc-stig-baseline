@@ -102,12 +102,12 @@ Configuration windowsserver2016stig {
             Ensure    = 'present'
         }
 
-        ##### disable netbios over tcp/ip by stopping the lmhosts service — reduces legacy name resolution lateral movement surface #####
-        Registry disablenetbioshelper {
+        ##### enable tcp/ip netbios helper (lmhosts) - required for nbt short name resolution on non domain hosts. start=2 automatic #####
+        Registry enablenetbioshelper {
             Key       = 'HKLM:\SYSTEM\CurrentControlSet\Services\lmhosts'
             ValueName = 'Start'
             ValueType = 'dword'
-            ValueData = '4'
+            ValueData = '2'
             Ensure    = 'present'
             Force     = $true
         }

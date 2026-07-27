@@ -269,6 +269,25 @@ try {
     Write-Log "all modules installed"
 
     # -----------------------------------------------------------------------
+    # step 1a: enable tcp/ip netbios helper (lmhosts) service
+    # -----------------------------------------------------------------------
+    ##### earlier baselines disabled lmhosts (start=4) which killed nbt short name resolution
+    ##### on non domain hosts (net use \\shortname\share returned network path not found even
+    ##### when the share was up). enable it here so short name resolution works immediately;
+    ##### the enablenetbioshelper Registry resource in each os config keeps it enabled through
+    ##### lcm applyandautocorrect passes. #####
+    Write-Log "--- step 1a: enabling tcp/ip netbios helper (lmhosts) ---"
+    try {
+        Set-Service -Name 'lmhosts' -StartupType Automatic -ErrorAction Stop
+        Start-Service -Name 'lmhosts' -ErrorAction Stop
+        $lmstate = Get-Service -Name 'lmhosts'
+        Write-Log "lmhosts service: status=$($lmstate.Status), startuptype=automatic"
+    }
+    catch {
+        Write-Log "could not enable lmhosts service (non-fatal) : $($_ -replace '[\r\n]+',' ')" 'warn'
+    }
+
+    # -----------------------------------------------------------------------
     # step 2: configure lcm
     # -----------------------------------------------------------------------
     Write-Log "--- step 2: configuring local configuration manager ---"

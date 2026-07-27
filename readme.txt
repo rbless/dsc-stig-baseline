@@ -504,3 +504,28 @@ v1.6.7
       section above.
     - active skip rules reference section updated to include V-213958 under sql
       2016 / 2017 with note that it only applies to the 2017 config file.
+
+v1.6.8
+    - enable tcp/ip netbios helper (lmhosts) on all os configs and bootstrap
+    - prior baseline disabled lmhosts (Start=4) via disablenetbioshelper Registry
+      resource on ws2016/2019/2022 as a defense-in-depth measure against legacy
+      name resolution lateral movement. on non-domain hosts this killed nbt short
+      name resolution: net use \\SHORTNAME\share returned 'network path not found'
+      even when the share was up and the firewall was open, because with lmhosts
+      off and no ad-integrated dns, there was no way to resolve the short name.
+    - flipped the resource in all three os configs from disablenetbioshelper
+      (Start=4) to enablenetbioshelper (Start=2, Automatic). lcm applyandautocorrect
+      now keeps the service running rather than stopping it every 15 minutes.
+    - added step 1a to Bootstrap.ps1 that sets lmhosts to Automatic and starts it
+      immediately -- covers the window between bootstrap and first lcm pass so
+      operators do not have to wait 15 minutes for name resolution to work after
+      a fresh install.
+    - non-fatal: bootstrap wraps the service change in try/catch so a missing or
+      restricted lmhosts service does not abort the whole bootstrap. warning is
+      logged and the run continues.
+    - security note: nbt is still a lateral movement vector (llmnr/nbt-ns
+      responder attacks). the trade-off here is that this is a non-domain
+      workgroup environment where short name resolution is required to reach
+      peer shares. domain-joined deployments can revert this to Start=4 by
+      restoring the disablenetbioshelper block from git history and rely on
+      dns instead.

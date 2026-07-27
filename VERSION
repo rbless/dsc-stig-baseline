@@ -1,5 +1,5 @@
 {
-  "PackageVersion": "1.6.7",
+  "PackageVersion": "1.6.8",
   "StigVersion": "2.10",
   "OsTarget": "Windows Server 2016",
   "PowerSTIGVersion": "4.29.0",
@@ -16,6 +16,12 @@
     "AdobeAcrobatSTIG": "1.0.0"
   },
   "ChangeLog": [
+    {
+      "Version": "1.6.8",
+      "Date": "2026-07-27",
+      "Author": "Ryan",
+      "Notes": "Enable TCP/IP NetBIOS Helper (lmhosts). Prior baseline disabled lmhosts (Start=4) which broke NBT short name resolution on non-domain WS2019: net use \\\\SHORTNAME\\share returned 'network path not found' even with the share up and firewall open. Flipped disablenetbioshelper -> enablenetbioshelper (Start=2, Automatic) in all three OS configs so LCM autocorrect keeps it running. Bootstrap.ps1 also gets a new step 1a that enables and starts the service immediately, so the fix takes effect before the first LCM pass."
+    },
     {
       "Version": "1.6.7",
       "Date": "2026-07-23",

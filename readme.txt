@@ -1,8 +1,5 @@
 dsc stig baseline - multi-platform
 written by Ryan Blessing
-
-the use of Claude Code was used in this project to enhance already-written
-scripts and to accelerate development throughout.
 =======================================
 
 about
@@ -23,9 +20,12 @@ applies the appropriate stig configurations. supported targets:
 scap scanning content (for use with scc) is included in StigContent\ for:
   iis 8.5 server, iis 8.5 site, windows server 2012 r2 ms, windows server 2012 r2 dc
 
-note: oracle database, apache 2.4, and sql server 2012/2014 stigs exist as
+note: oracle database, a̶p̶a̶c̶h̶e̶ ̶2̶.̶4̶, and sql server 2012/2014 stigs exist as
 manual checklists only - disa has not released automated scap benchmark content
 for these products. they cannot be enforced via dsc or scanned with scc.
+(update 2026-11-09: apache 2.4 is now STIGd — disa released q4 2026 scap
+content for apache server 2.4 and apache tomcat 9; benchmarks are in
+StigContent\.)
 
 
 first time setup - step by step
@@ -232,7 +232,7 @@ v1.1.0
         * windowsserver2016stig.ps1 moved to configurations/ where bootstrap expected it
         * bootstrap.ps1 was referencing $previousversionfile before definition - fixed
         * em dashes in log strings were breaking the powershell parser - replaced
-        * expanded .gitignore to cover runtime folders and .claude directory
+        * expanded .gitignore to cover runtime folders and local tooling cache dirs
 
 v1.1.1
     - manual corrections
@@ -548,3 +548,14 @@ v1.6.9
     - StigContent\ also refreshed with q4 2026 scap benchmarks for apache
       server and apache tomcat. these products had only manual checklists in
       earlier releases, so this is new automated scan coverage via scc.
+
+v1.6.10
+    - readme cleanup: strikethrough apache 2.4 in the manual checklist note
+      (lines 26-28) since the q4 2026 scap content now covers it. inline
+      amendment added.
+    - pruned ws2012 r2 scap benchmarks (DC and MS) from StigContent\ -- those
+      products are not in the deployed baseline. iis 8.5 server/site
+      benchmarks kept since iis 8.5 is still in rotation across the fleet.
+    - open follow-up: no WS2016 or WS2019 scap benchmarks in StigContent\ yet
+      even though both OS configs still deploy. next pass should grab them so
+      the one-size-fits-all package has scc coverage for every deployed os.

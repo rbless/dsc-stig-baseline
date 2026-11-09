@@ -1,5 +1,5 @@
 {
-  "PackageVersion": "1.6.9",
+  "PackageVersion": "1.6.10",
   "StigVersion": "2.10",
   "OsTarget": "Windows Server 2016",
   "PowerSTIGVersion": "4.29.0",
@@ -16,6 +16,12 @@
     "AdobeAcrobatSTIG": "1.0.0"
   },
   "ChangeLog": [
+    {
+      "Version": "1.6.10",
+      "Date": "2026-11-09",
+      "Author": "Ryan",
+      "Notes": "Documentation cleanup and content pruning. Strikethrough the apache 2.4 claim in the manual-checklist note (readme lines 26-28) since q4 2026 scap content covers it (shipped in v1.6.9); inline amendment added. Prune ws2012 r2 scap benchmarks from StigContent\\ since those products are no longer in the deployed baseline. iis 8.5 server/site benchmarks kept since iis 8.5 is still in rotation. No WS2016/WS2019 scap content in StigContent\\ yet -- flag for a follow-up pass."
+    },
     {
       "Version": "1.6.9",
       "Date": "2026-11-09",

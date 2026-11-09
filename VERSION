@@ -1,5 +1,5 @@
 {
-  "PackageVersion": "1.6.10",
+  "PackageVersion": "1.6.11",
   "StigVersion": "2.10",
   "OsTarget": "Windows Server 2016",
   "PowerSTIGVersion": "4.29.0",
@@ -16,6 +16,12 @@
     "AdobeAcrobatSTIG": "1.0.0"
   },
   "ChangeLog": [
+    {
+      "Version": "1.6.11",
+      "Date": "2026-11-09",
+      "Author": "Ryan",
+      "Notes": "Add SCAP benchmarks for all four deployed OS versions: WS2016 V2R8, WS2019 V3R9, WS2022 V2R11, WS2025 V1R2. Resolves the open follow-up from v1.6.10 -- SCC can now generate automated compliance reports for every OS in rotation. Also add SCAP benchmarks that apply fleet-wide: Google Chrome V2R11, MS Edge V2R5, IE11 V2R9, .NET Framework 4.0 V2R8, and Windows Defender Firewall V2R3. Still-missing SCAP: SQL Server 2016/2022 (currently manual STIGs only in StigContent\\); DISA publishes these on the /stigs/scap/ page for a follow-up pass."
+    },
     {
       "Version": "1.6.10",
       "Date": "2026-11-09",

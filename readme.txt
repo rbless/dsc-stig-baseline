@@ -559,3 +559,17 @@ v1.6.10
     - open follow-up: no WS2016 or WS2019 scap benchmarks in StigContent\ yet
       even though both OS configs still deploy. next pass should grab them so
       the one-size-fits-all package has scc coverage for every deployed os.
+
+v1.6.11
+    - added scap benchmarks for all four deployed os versions: ws2016 V2R8,
+      ws2019 V3R9, ws2022 V2R11, ws2025 V1R2. resolves the open follow-up
+      from v1.6.10 -- scc can now generate automated compliance reports
+      for every os in rotation.
+    - added fleet-wide scap benchmarks that apply across all servers:
+      google chrome V2R11, ms edge V2R5, ie11 V2R9, .net framework 4.0
+      V2R8, and windows defender firewall V2R3.
+    - cleaned up duplicate and broken download artifacts in StigContent\
+      (extracted bundle directory, (1)/(2) suffixed duplicate zips).
+    - still-missing scap: sql server 2016 and sql server 2022 currently
+      have manual stigs in StigContent\ but no scap benchmark. disa
+      publishes both on the /stigs/scap/ page -- next pass.

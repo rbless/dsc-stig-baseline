@@ -244,7 +244,30 @@ Get-ChildItem -Path $modulespath -Directory | Where-Object { $_.Name -notlike 'V
 }
 
 # ---------------------------------------------------------------------------
-# step 7: build zip
+# step 7: copy scap scanner and stig benchmark content
+# ---------------------------------------------------------------------------
+Write-Step "copying SCAP scanner and STIG benchmark content"
+
+##### SCAP\ holds the self-contained SCC installer plus docs — target vms have no internet so the scanner must ship in-package. the inner scc-5.12_Windows.zip is dropped from staging since SCC_5.12_Windows_Setup.exe already is the installer and the inner zip duplicates the payload #####
+$scapsrc = Join-Path $sourceroot 'SCAP'
+if (-not (Test-Path $scapsrc)) { Write-Fail "SCAP folder not found at $scapsrc" }
+Copy-Item -Path $scapsrc -Destination $dscstage -Recurse -Force
+$redundantscczip = Join-Path $dscstage 'SCAP\scc-5.12_Windows\scc-5.12_Windows.zip'
+if (Test-Path $redundantscczip) {
+    Remove-Item $redundantscczip -Force
+    Write-OK "SCAP\ (dropped redundant scc-5.12_Windows.zip)"
+} else {
+    Write-OK "SCAP\"
+}
+
+##### StigContent\ holds the disa scap benchmark zips that scc scans against — whole tree copied so whatever product set the operator curated in the repo ships as-is #####
+$stigcontentsrc = Join-Path $sourceroot 'StigContent'
+if (-not (Test-Path $stigcontentsrc)) { Write-Fail "StigContent folder not found at $stigcontentsrc" }
+Copy-Item -Path $stigcontentsrc -Destination $dscstage -Recurse -Force
+Write-OK "StigContent\"
+
+# ---------------------------------------------------------------------------
+# step 8: build zip
 # ---------------------------------------------------------------------------
 Write-Step "building zip"
 

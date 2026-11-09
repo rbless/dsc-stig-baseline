@@ -1,5 +1,5 @@
 {
-  "PackageVersion": "1.6.8",
+  "PackageVersion": "1.6.9",
   "StigVersion": "2.10",
   "OsTarget": "Windows Server 2016",
   "PowerSTIGVersion": "4.29.0",
@@ -16,6 +16,12 @@
     "AdobeAcrobatSTIG": "1.0.0"
   },
   "ChangeLog": [
+    {
+      "Version": "1.6.9",
+      "Date": "2026-11-09",
+      "Author": "Ryan",
+      "Notes": "Build-Package.ps1 now actually copies SCAP\\ and StigContent\\ into the deployment zip. The v1.3.0 changelog claimed scc and scap benchmark content shipped in the zip but the build script never had copy logic for either folder, so every release from 1.3.0 to 1.6.8 shipped without them -- targets had no way to run scc scans without a separate manual drop. Also drops the redundant inner scc-5.12_Windows.zip from staging (duplicates what SCC_5.12_Windows_Setup.exe already installs) to keep the zip size reasonable. StigContent\\ ships whatever disa scap benchmark zips sit in the repo folder at build time; curate per product set before building. StigContent\\ has also been refreshed with q4 2026 scap benchmarks for apache server and apache tomcat -- these products had been manual-checklist-only in prior releases, so this is new automated scan coverage."
+    },
     {
       "Version": "1.6.8",
       "Date": "2026-07-27",

@@ -506,6 +506,8 @@ v1.6.7
       2016 / 2017 with note that it only applies to the 2017 config file.
 
 v1.6.8
+All praise to Jesse Simmons for finding this answer even though he went bout 
+applying it the wrong way. 
     - enable tcp/ip netbios helper (lmhosts) on all os configs and bootstrap
     - prior baseline disabled lmhosts (Start=4) via disablenetbioshelper Registry
       resource on ws2016/2019/2022 as a defense-in-depth measure against legacy
@@ -529,3 +531,20 @@ v1.6.8
       peer shares. domain-joined deployments can revert this to Start=4 by
       restoring the disablenetbioshelper block from git history and rely on
       dns instead.
+
+v1.6.9
+    - Build-Package.ps1 finally copies SCAP\ and StigContent\ into the deployment
+      zip. v1.3.0 changelog claimed scc and scap benchmark content shipped in
+      the zip but the build script never had the copy logic for either folder,
+      so every release from 1.3.0 forward shipped without them. targets had no
+      way to run scc scans without a separate manual drop.
+    - drop the redundant inner scc-5.12_Windows.zip (56 MB copy of what
+      SCC_5.12_Windows_Setup.exe already installs) from staging so the
+      deployment zip does not double up on the scc payload.
+    - StigContent\ now ships whatever disa scap benchmark zips sit in that
+      folder at build time. refresh them from the disa quarterly stig library
+      compilation on public.cyber.mil before building if you want the latest
+      content.
+    - StigContent\ also refreshed with q4 2026 scap benchmarks for apache
+      server and apache tomcat. these products had only manual checklists in
+      earlier releases, so this is new automated scan coverage via scc.

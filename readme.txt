@@ -573,3 +573,6 @@ v1.6.11
     - still-missing scap: sql server 2016 and sql server 2022 currently
       have manual stigs in StigContent\ but no scap benchmark. disa
       publishes both on the /stigs/scap/ page -- next pass.
+      (update 2026-11-10: both added -- U_MS_SQL_Server_2016_Y26M04_STIG.zip
+      and U_MS_SQL_Server_2022_Y26M04_STIG.zip are now in StigContent\.
+      scc loads these and runs partial automated checks against sql targets.)

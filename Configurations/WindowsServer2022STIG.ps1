@@ -25,11 +25,23 @@ Configuration windowsserver2022stig {
         [string]$nodename = 'localhost',
 
         [ValidateSet('ms', 'dc')]
-        [string]$osrole = 'ms'
+        [string]$osrole = 'ms',
+
+        [bool]$hassql = $false
     )
 
     Import-DscResource -ModuleName PowerSTIG
     Import-DscResource -ModuleName PSDscResources
+
+    ##### build skip list at configuration scope so the sql-conditional block below can append to it before the WindowsServer resource consumes it. V-254254.a/.b/.c (RegistryAccessEntry on HKLM:\SOFTWARE, HKLM:\SECURITY, HKLM:\SYSTEM) are skipped when a sql engine is present: hklm:\system acl diverges from powerstig baseline due to a sql server install adding a service sid. this causes SCC SCAP scans to pass while LCM notes drift. known friction between the two softwares. #####
+    $skiprules = @(
+        'V-254439',  # deny log on through remote desktop services - blocks local accounts, not applicable to gapped/avd environment
+        'V-254435',  # deny access to this computer from the network - default includes local account, blocks rdp on standalone vms
+        'V-254281',  # windows time service - no external ntp reachable in gapped environment
+        'V-254459',  # smart card removal lock - smart cards not used in avd, local logon only
+        'V-254458'   # logon banner caption - dod-only values not applicable, replaced with dos caption via registry resource below
+    )
+    if ($hassql) { $skiprules += @('V-254254.a','V-254254.b','V-254254.c') }
 
     Node $nodename {
 
@@ -43,13 +55,7 @@ Configuration windowsserver2022stig {
             OsVersion   = '2022'
             OsRole      = $osrole
             StigVersion = '2.7'
-            SkipRule    = @(
-                'V-254439',  # deny log on through remote desktop services - blocks local accounts, not applicable to gapped/avd environment
-                'V-254435',  # deny access to this computer from the network - default includes local account, blocks rdp on standalone vms
-                'V-254281',  # windows time service - no external ntp reachable in gapped environment
-                'V-254459',  # smart card removal lock - smart cards not used in avd, local logon only
-                'V-254458'   # logon banner caption - dod-only values not applicable, replaced with dos caption via registry resource below
-            )
+            SkipRule    = $skiprules
             # note: ws2022 stig has no dedicated fips algorithm policy rule (unlike ws2016 V-225059 and ws2019 V-205842).
             # V-254276 previously appeared in this list mislabeled as fips -- it is actually the smbv1 disable rule and has been removed.
             # override banner body text with dos-approved legal notice (v-254457)

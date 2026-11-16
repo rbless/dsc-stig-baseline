@@ -25,11 +25,24 @@ Configuration windowsserver2019stig {
         [string]$nodename = 'localhost',
 
         [ValidateSet('ms', 'dc')]
-        [string]$osrole = 'ms'
+        [string]$osrole = 'ms',
+
+        [bool]$hassql = $false
     )
 
     Import-DscResource -ModuleName PowerSTIG
     Import-DscResource -ModuleName PSDscResources
+
+    ##### build skip list at configuration scope so the sql-conditional block below can append to it before the WindowsServer resource consumes it. V-205737.a/.b/.c (RegistryAccessEntry on HKLM:\SOFTWARE, HKLM:\SECURITY, HKLM:\SYSTEM) are skipped when a sql engine is present: hklm:\system acl diverges from powerstig baseline due to a sql server install adding a service sid. this causes SCC SCAP scans to pass while LCM notes drift. known friction between the two softwares. #####
+    $skiprules = @(
+        'V-205733',  # deny log on through remote desktop services - blocks local accounts, not applicable to gapped/avd environment
+        'V-205672',  # deny access to this computer from the network - default includes local account, blocks rdp on standalone vms
+        'V-205800',  # windows time service - no external ntp reachable in gapped environment
+        'V-205912',  # smart card removal lock - smart cards not used in avd, local logon only
+        'V-205842',  # fips algorithm policy - not required in this environment
+        'V-205632'   # logon banner caption - dod-only values not applicable, replaced with dos caption via registry resource below
+    )
+    if ($hassql) { $skiprules += @('V-205737.a','V-205737.b','V-205737.c') }
 
     Node $nodename {
 
@@ -43,14 +56,7 @@ Configuration windowsserver2019stig {
             OsVersion   = '2019'
             OsRole      = $osrole
             StigVersion = '3.7'
-            SkipRule    = @(
-                'V-205733',  # deny log on through remote desktop services - blocks local accounts, not applicable to gapped/avd environment
-                'V-205672',  # deny access to this computer from the network - default includes local account, blocks rdp on standalone vms
-                'V-205800',  # windows time service - no external ntp reachable in gapped environment
-                'V-205912',  # smart card removal lock - smart cards not used in avd, local logon only
-                'V-205842',  # fips algorithm policy - not required in this environment
-                'V-205632'   # logon banner caption - dod-only values not applicable, replaced with dos caption via registry resource below
-            )
+            SkipRule    = $skiprules
             # override banner body text with dos-approved legal notice (v-205631)
             # v-205632 (caption) is skipped above and set directly via registry resource below
             OrgSettings = @{

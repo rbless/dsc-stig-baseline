@@ -373,7 +373,9 @@ try {
         ##### handles the local connection for named instances without needing a port.
         ##### non-os/non-sql configs take only nodename and outputpath. #####
         if ($targetkey -match '^WS' -and $osrole) {
-            & $cfg.Function -NodeName 'localhost' -OsRole $osrole -OutputPath $mofsubpath
+            ##### windows configs accept -hassql so the v-205737/v-224835/v-254254 RegistryAccessEntry rules (hklm:\software, hklm:\security, hklm:\system acls) can be skipped on hosts where sql server is installed. sql installs add a service sid to hklm:\system which drifts the powerstig baseline but passes scc scap scans -- lcm would otherwise thrash this rule every 15 min. #####
+            $hassql = @($detected | Where-Object { $_ -match '^SQL\d' }).Count -gt 0
+            & $cfg.Function -NodeName 'localhost' -OsRole $osrole -HasSQL $hassql -OutputPath $mofsubpath
         } elseif ($targetkey -match '^SQL') {
             $rawinstance = if ($target -match ':(.+)$') { $matches[1] } else { 'MSSQLSERVER' }
             if ($rawinstance -eq 'MSSQLSERVER') {

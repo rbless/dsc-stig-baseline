@@ -576,3 +576,17 @@ v1.6.11
       (update 2026-11-10: both added -- U_MS_SQL_Server_2016_Y26M04_STIG.zip
       and U_MS_SQL_Server_2022_Y26M04_STIG.zip are now in StigContent\.
       scc loads these and runs partial automated checks against sql targets.)
+
+v1.6.12
+    - conditionally skip the RegistryAccessEntry rules on hosts where
+      sql server is installed: V-205737.a/.b/.c (ws2019),
+      V-224835.a/.b/.c (ws2016), V-254254.a/.b/.c (ws2022). all three
+      rule sets check the acl on HKLM:\SOFTWARE, HKLM:\SECURITY, and
+      HKLM:\SYSTEM against the powerstig baseline. hklm:\system acl
+      diverges from the powerstig baseline due to a sql server install
+      adding a service sid. this causes SCC SCAP scans to pass while
+      LCM notes drift. known friction between the two softwares.
+    - bootstrap.ps1 now detects sql presence from the existing detection
+      pass and passes -hassql to windowsserver20XXstig. each ws config
+      accepts the new $hassql parameter and appends the three sub-rules
+      to its skip list only when set, so non-sql hosts remain unchanged.

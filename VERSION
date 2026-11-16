@@ -1,5 +1,5 @@
 {
-  "PackageVersion": "1.6.11",
+  "PackageVersion": "1.6.12",
   "StigVersion": "2.10",
   "OsTarget": "Windows Server 2016",
   "PowerSTIGVersion": "4.29.0",
@@ -16,6 +16,12 @@
     "AdobeAcrobatSTIG": "1.0.0"
   },
   "ChangeLog": [
+    {
+      "Version": "1.6.12",
+      "Date": "2026-11-16",
+      "Author": "Ryan",
+      "Notes": "Conditionally skip the RegistryAccessEntry rules on hosts where sql server is installed: V-205737.a/.b/.c (ws2019), V-224835.a/.b/.c (ws2016), V-254254.a/.b/.c (ws2022). All three rule sets check the acl on HKLM:\\SOFTWARE, HKLM:\\SECURITY, and HKLM:\\SYSTEM against the powerstig baseline. HKLM:\\SYSTEM acl diverges from the powerstig baseline due to a sql server install adding a service sid. This causes SCC SCAP scans to pass while LCM notes drift. Known friction between the two softwares. Bootstrap.ps1 now detects sql presence from the existing $detected list and passes -HasSQL to the windowsserver20XXstig configurations; each ws config accepts the new $hassql param and appends the three sub-rules to its skip list only when set."
+    },
     {
       "Version": "1.6.11",
       "Date": "2026-11-09",

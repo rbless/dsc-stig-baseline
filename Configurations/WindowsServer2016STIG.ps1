@@ -26,11 +26,23 @@ Configuration windowsserver2016stig {
         [string]$nodename = 'localhost',
 
         [ValidateSet('ms', 'dc')]
-        [string]$osrole = 'ms'
+        [string]$osrole = 'ms',
+
+        [bool]$hassql = $false
     )
 
     Import-DscResource -ModuleName PowerSTIG
     Import-DscResource -ModuleName PSDscResources
+
+    ##### build skip list at configuration scope so the sql-conditional block below can append to it before the WindowsServer resource consumes it. V-224835.a/.b/.c (RegistryAccessEntry on HKLM:\SOFTWARE, HKLM:\SECURITY, HKLM:\SYSTEM) are skipped when a sql engine is present: hklm:\system acl diverges from powerstig baseline due to a sql server install adding a service sid. this causes SCC SCAP scans to pass while LCM notes drift. known friction between the two softwares. #####
+    $skiprules = @(
+        'V-225019',  # deny log on through remote desktop services - blocks local accounts, not applicable to gapped/avd environment
+        'V-224862',  # windows time service - no external ntp reachable in gapped environment
+        'V-225038',  # smart card removal lock - smart cards not used in avd, local logon only
+        'V-225059',  # fips algorithm policy - not required in this environment
+        'V-225037'   # logon banner caption - dod-only values not applicable, replaced with dos caption via registry resource below
+    )
+    if ($hassql) { $skiprules += @('V-224835.a','V-224835.b','V-224835.c') }
 
     Node $nodename {
 
@@ -44,13 +56,7 @@ Configuration windowsserver2016stig {
             OsVersion   = '2016'
             OsRole      = $osrole
             StigVersion = '2.10'
-            SkipRule    = @(
-                'V-225019',  # deny log on through remote desktop services - blocks local accounts, not applicable to gapped/avd environment
-                'V-224862',  # windows time service - no external ntp reachable in gapped environment
-                'V-225038',  # smart card removal lock - smart cards not used in avd, local logon only
-                'V-225059',  # fips algorithm policy - not required in this environment
-                'V-225037'   # logon banner caption - dod-only values not applicable, replaced with dos caption via registry resource below
-            )
+            SkipRule    = $skiprules
             # override banner body text with dos-approved legal notice (v-225036)
             # v-225037 (caption) is skipped above and set directly via registry resource below
             OrgSettings = @{

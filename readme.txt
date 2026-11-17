@@ -590,3 +590,29 @@ v1.6.12
       pass and passes -hassql to windowsserver20XXstig. each ws config
       accepts the new $hassql parameter and appends the three sub-rules
       to its skip list only when set, so non-sql hosts remain unchanged.
+
+v1.7.0
+    - new Configurations\DefenderAVSTIG.ps1 adds dsc coverage for the
+      microsoft defender antivirus stig (23 rules). written as declarative
+      Registry resources against HKLM:\SOFTWARE\Policies\Microsoft\Windows
+      Defender -- same hive scc reads during a scap scan, so a passing
+      registry state will satisfy the stig scan.
+    - risk tiering for the legacy sql + app fleet:
+        tier 1 (11 rules): scan behavior, signatures, threat response --
+          enforced by default. low breakage risk.
+        tier 2 (3 rules):  maps / cloud telemetry -- enforced by default.
+          low on air-gapped targets.
+        tier 3 (1 rule):   pua protection (v-213426) -- defaults to AUDIT.
+          flip with bootstrap -AggressivePua $true after dev review of
+          defender event id 1160 for false positives on admin tools.
+        tier 4 (8 rules):  asr rules + network protection (v-213456 thru
+          v-213463) -- default to AUDIT. flip with bootstrap -AsrMode
+          Enforce after dev-env bake-in shows a clean defender operational
+          log for the app set running on each target. legacy office macros,
+          wsh admin scripts, ssis->office automation, and old integration
+          endpoints are the most common things these rules break.
+    - bootstrap.ps1 now accepts -AggressivePua and -AsrMode, forwards both
+      to the defender config, adds DefenderAV to the detection pass (always
+      compiled on any supported windows server), and adds the DefenderAV
+      entry to the configmap. invocation example:
+        .\Bootstrap.ps1 -AsrMode Enforce -AggressivePua $true

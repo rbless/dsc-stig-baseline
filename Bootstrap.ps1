@@ -20,8 +20,21 @@
 .PARAMETER dscroot
     root path where the dsc zip was extracted. default: C:\DSC
 
+.PARAMETER aggressivepua
+    forwarded to DefenderAVSTIG. $true flips v-213426 (pua block) from
+    AuditMode to Enabled. default $false -- pua stays in audit until dev
+    confirms no admin tool is misclassified.
+
+.PARAMETER asrmode
+    forwarded to DefenderAVSTIG. 'Audit' (default) runs all tier 4 asr /
+    network-protection rules in audit-only mode. 'Enforce' puts them in
+    block mode. flip only after a clean dev-env audit log.
+
 .EXAMPLE
     .\Bootstrap.ps1
+
+.EXAMPLE
+    .\Bootstrap.ps1 -AsrMode Enforce -AggressivePua $true
 
 .NOTES
     some domain-specific STIGs (e.g. user rights assignments that check domain SIDs) cannot apply
@@ -31,7 +44,12 @@
 
 [CmdletBinding()]
 param (
-    [string]$dscroot = 'C:\DSC'
+    [string]$dscroot = 'C:\DSC',
+
+    [bool]$aggressivepua = $false,
+
+    [ValidateSet('Audit', 'Enforce')]
+    [string]$asrmode = 'Audit'
 )
 
 Set-StrictMode -Version Latest
@@ -83,6 +101,11 @@ function Get-StigTargets {
         '*2019*' { $detected.Add("WS2019:$osrole")   }
         '*2022*' { $detected.Add("WS2022:$osrole")   }
         default  { Write-Log "unrecognized os: $($osinfo.Caption) -- no os stig will be applied" 'warn' }
+    }
+
+    ##### defender av ships on every supported windows server; whenever any ws target is detected, add DefenderAV so its mof compiles alongside the os. #####
+    if ($detected | Where-Object { $_ -match '^WS' }) {
+        $detected.Add('DefenderAV')
     }
 
     # sql server -- enumerate Instance Names\SQL registry values, which list actual engine instances.
@@ -194,6 +217,7 @@ $configmap = [ordered]@{
     'IIS10.0'      = @{ Script = 'Configurations\IIS10STIG.ps1';              Function = 'iis10stig'              }
     'Apache2.4'    = @{ Script = 'Configurations\Apache24STIG.ps1';           Function = 'apache24stig'           }
     'AdobeAcrobat' = @{ Script = 'Configurations\AdobeAcrobatSTIG.ps1';       Function = 'adobeacrobatstig'       }
+    'DefenderAV'   = @{ Script = 'Configurations\DefenderAVSTIG.ps1';         Function = 'defenderavstig'         }
 }
 
 # ---------------------------------------------------------------------------
@@ -376,6 +400,9 @@ try {
             ##### windows configs accept -hassql so the v-205737/v-224835/v-254254 RegistryAccessEntry rules (hklm:\software, hklm:\security, hklm:\system acls) can be skipped on hosts where sql server is installed. sql installs add a service sid to hklm:\system which drifts the powerstig baseline but passes scc scap scans -- lcm would otherwise thrash this rule every 15 min. #####
             $hassql = @($detected | Where-Object { $_ -match '^SQL\d' }).Count -gt 0
             & $cfg.Function -NodeName 'localhost' -OsRole $osrole -HasSQL $hassql -OutputPath $mofsubpath
+        } elseif ($targetkey -eq 'DefenderAV') {
+            ##### forward bootstrap-level risk knobs to the defender config. defaults: AsrMode=Audit, AggressivePua=$false. flip explicitly when promoting from dev to prod. #####
+            & $cfg.Function -NodeName 'localhost' -AggressivePua $aggressivepua -AsrMode $asrmode -OutputPath $mofsubpath
         } elseif ($targetkey -match '^SQL') {
             $rawinstance = if ($target -match ':(.+)$') { $matches[1] } else { 'MSSQLSERVER' }
             if ($rawinstance -eq 'MSSQLSERVER') {

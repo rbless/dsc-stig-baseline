@@ -1,5 +1,5 @@
 {
-  "PackageVersion": "1.6.12",
+  "PackageVersion": "1.7.0",
   "StigVersion": "2.10",
   "OsTarget": "Windows Server 2016",
   "PowerSTIGVersion": "4.29.0",
@@ -13,9 +13,16 @@
     "SqlServer2017STIG": "1.0.0",
     "SqlServer2022STIG": "1.0.0",
     "IIS10STIG": "1.0.0",
-    "AdobeAcrobatSTIG": "1.0.0"
+    "AdobeAcrobatSTIG": "1.0.0",
+    "DefenderAVSTIG": "1.0.0"
   },
   "ChangeLog": [
+    {
+      "Version": "1.7.0",
+      "Date": "2026-11-17",
+      "Author": "Ryan",
+      "Notes": "New Configurations\\DefenderAVSTIG.ps1 adds dsc coverage for the microsoft defender antivirus stig (23 rules). Written as declarative Registry resources against HKLM:\\SOFTWARE\\Policies\\Microsoft\\Windows Defender -- same hive scc reads during a scap scan. Risk tiered for the legacy sql + app fleet: tier 1 (scan behavior, signatures, threat response) and tier 2 (maps / cloud) are enforced by default; tier 3 pua protection defaults to audit mode; tier 4 asr rules + network protection default to audit mode. Bootstrap.ps1 now accepts -AggressivePua and -AsrMode and forwards both to the defender config; also adds DefenderAV to the detection pass (always compiled on any supported windows server) and to the configmap. Flip tier 3 / tier 4 to enforce only after dev-env bake-in confirms no app breakage."
+    },
     {
       "Version": "1.6.12",
       "Date": "2026-11-16",

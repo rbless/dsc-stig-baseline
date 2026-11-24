@@ -1,5 +1,5 @@
 {
-  "PackageVersion": "1.7.0",
+  "PackageVersion": "1.7.1",
   "StigVersion": "2.10",
   "OsTarget": "Windows Server 2016",
   "PowerSTIGVersion": "4.29.0",
@@ -17,6 +17,12 @@
     "DefenderAVSTIG": "1.0.0"
   },
   "ChangeLog": [
+    {
+      "Version": "1.7.1",
+      "Date": "2026-11-23",
+      "Author": "Ryan",
+      "Notes": "Add WindowsFirewall PowerSTIG block to WS2016, WS2019, and WS2022 configs (Phase 2). Uses WindowsFirewall composite resource at StigVersion 2.2 — 38 of 39 rules automated via Registry resources. V-242009 (limit inbound access to authorized management systems) is dscresource=None and requires manual verification. Six OrgSettings log file size rules (domain/private/public profiles across both Policies and SharedAccess hive paths) set to 16384 — STIG-required minimum. No skip rules required. No new module imports needed."
+    },
     {
       "Version": "1.7.0",
       "Date": "2026-11-17",

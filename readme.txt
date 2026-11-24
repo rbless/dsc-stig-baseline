@@ -616,3 +616,18 @@ v1.7.0
       compiled on any supported windows server), and adds the DefenderAV
       entry to the configmap. invocation example:
         .\Bootstrap.ps1 -AsrMode Enforce -AggressivePua $true
+
+v1.7.1
+    - add WindowsFirewall PowerSTIG block to WS2016, WS2019, and WS2022
+      configs (all three Configurations\WindowsServer20XXSTIG.ps1 files).
+      uses the WindowsFirewall composite resource at StigVersion 2.2.
+    - 38 of 39 rules automated via Registry resources. V-242009 (limit
+      inbound access to authorized remote management systems) is
+      dscresource=None -- manual verification required; ensure inbound
+      firewall rules restrict access to authorized management hosts only.
+    - six OrgSettings rules (domain/private/public profiles, both
+      Policies and SharedAccess hive paths per profile) are LogFileSize
+      values set to 16384 -- the STIG-required minimum (>= 16384 bytes).
+    - no SkipRule entries required. no new module imports needed.
+    - no sql fleet risk: rules apply to Windows Firewall policy registry
+      keys only -- not to inbound/outbound port rules or sql configuration.

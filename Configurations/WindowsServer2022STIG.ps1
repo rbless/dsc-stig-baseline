@@ -67,6 +67,23 @@ Configuration windowsserver2022stig {
             }
         }
 
+        # ---------------------------------------------------------------
+        # disa stig — windows defender firewall with advanced security
+        # ---------------------------------------------------------------
+
+        ##### applies the windows defender firewall stig via the powerstig WindowsFirewall resource. 38 of 39 rules automated via registry; v-242009 (limit inbound access to authorized management systems) is dscresource=none and requires manual verification. the six log file size orgsettings rules (domain/private/public profiles, both registry paths each) are set to 16384 — the stig-required minimum (>= 16384). no skip rules needed. #####
+        WindowsFirewall baselinefirewall {
+            StigVersion = '2.2'
+            OrgSettings = @{
+                'V-241994.a' = @{ ValueData = '16384' }  # domain profile log size — Policies hive
+                'V-241994.b' = @{ ValueData = '16384' }  # domain profile log size — SharedAccess hive
+                'V-241999.a' = @{ ValueData = '16384' }  # private profile log size — Policies hive
+                'V-241999.b' = @{ ValueData = '16384' }  # private profile log size — SharedAccess hive
+                'V-242006.a' = @{ ValueData = '16384' }  # public profile log size — Policies hive
+                'V-242006.b' = @{ ValueData = '16384' }  # public profile log size — SharedAccess hive
+            }
+        }
+
         ##### dos logon banner caption - replaces dod-locked caption from v-254458 with dos-approved text #####
         Registry doscaptionbanner {
             Key       = 'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\System'
